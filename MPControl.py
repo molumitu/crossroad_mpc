@@ -1,148 +1,150 @@
 import numpy as np 
 from vehicle import VehicleDynamics
 from Reference import ReferencePath
-from Env_utils import STEP_TIME
+from Env_utils import STEP_TIME, deal_with_phi
 
 
 class ModelPredictiveControl:
-    def __init__(self, init_x, horizon, task):
+    def __init__(self, obs, horizon, ref, task):  # init_x为Env 的 obs
         self.horizon = horizon
-        self.init_x = init_x
-        # x is obs_vector
+        self.obs = obs
         self.vehicle_dynamics = VehicleDynamics()
         self.task = task
-        self.ref_path = None
+        self.ref_path = ref.path
+        self.ref = ref
         self.ego_info_dim = 6  #v_x, v_y, r, x, y, phi
-        self.per_veh_info_dim = 4  # x, y, phi, v_x
+        self.per_veh_info_dim = 4  # x, y, v_x, phi
+        self.future_ref_list = None
+        self.current_ref_point = None
+        self.exp_v = 7.8
 
-    def reset_init_ref(self, init_x, ref_index):
-        self.init_x = init_x
+    def reset_init_ref(self, obs, ref_index):
+        self.obs = obs
         self.ref_path = ReferencePath('left', ref_index)
  
-    def reset_init_state(self, init_x):
-        self.init_x = init_x
+    def reset_obs(self, obs):
+        self.obs = obs
 
-    def compute_next_obses(self, obses, actions):
-        ego_infos, tracking_infos, veh_infos = obses[:, :self.ego_info_dim], \
-                                               obses[:, self.ego_info_dim:self.ego_info_dim + 3], \
-                                               obses[:, self.ego_info_dim + 3:]
+    def _update_future_ref(self):
+        ego_list = self.obs[0]  # a list [v_x, v_y, r, x, y, phi]
+        current_ref_point, future_ref_list = self.ref.future_ref_points(ego_list[3], ego_list[4], self.horizon)
+        self.current_ref_point = current_ref_point
+        self.future_ref_list = future_ref_list
+        return current_ref_point, future_ref_list
 
-        next_ego_infos = self.ego_predict(ego_infos, actions)
+    def compute_next_obs(self, obs, actions):
+        ego_list = obs[0] # a list [v_x, v_y, r, x, y, phi]
+        veh_recarray = obs[1]
 
-        next_tracking_infos = self.ref_path.tracking_error_vector(next_ego_infos[:, 3],
-                                                                  next_ego_infos[:, 4],
-                                                                  next_ego_infos[:, 5],
-                                                                  next_ego_infos[:, 0],
-                                                                  0)
-        next_veh_infos = self.veh_predict(veh_infos)
-        next_obses = np.concatenate([next_ego_infos, next_tracking_infos, next_veh_infos], 1)
-        return next_obses
+        next_ego_list = self.ego_predict(ego_list, actions)
+        next_veh_recarray = self.veh_predict(veh_recarray)
 
-    def ego_predict(self, ego_infos, actions):
-        ego_next_infos, _ = self.vehicle_dynamics.prediction(ego_infos[:, :6], actions, STEP_TIME)
-        return ego_next_infos
+        next_obs = next_ego_list, next_veh_recarray
+        return next_obs
 
-    def veh_predict(self, veh_infos):
-        if self.task == 'left':
-            veh_mode_list = ['dl'] * 0 + ['du'] * 0 + ['ud'] * 2 + ['ul'] * 0
-        elif self.task == 'straight':
-            veh_mode_list = ['dl'] * 2 + ['du'] * 2 + ['ud'] * 2 + ['ru'] * 3 + ['ur'] * 3
-        else:
-            assert self.task == 'right'
-            veh_mode_list = ['dr'] * 2 + ['ur'] * 3 + ['lr'] * 3
+    def ego_predict(self, ego_list, actions):
+        ego_next_state, _ = self.vehicle_dynamics.prediction(ego_list, actions, STEP_TIME)
+        v_x, v_y, r, x, y, phi = ego_next_state[0], ego_next_state[1], ego_next_state[2],\
+                                     ego_next_state[3], ego_next_state[4], ego_next_state[5]
+        ego_next_list = [v_x, v_y, r, x, y, phi]                          
+        return ego_next_list
 
-        predictions_to_be_concat = []
+    def veh_predict(self, veh_recarray):
+        def route_to_task(veh):
+            if all(veh.route == ['1o', '4i']) or all(veh.route == ['2o', '1i']) :
+                task = 'left'
+            elif all(veh.route == ['4o', '1i']) or all(veh.route == ['3o', '4i']):
+                task = 'right'
+            else:
+                task = 'straight'
+            return task
 
-        for vehs_index in range(len(veh_mode_list)):
-            predictions_to_be_concat.append(self.predict_for_a_mode(
-                veh_infos[:, vehs_index * self.per_veh_info_dim:(vehs_index + 1) * self.per_veh_info_dim],
-                veh_mode_list[vehs_index]))
-        return np.concatenate(predictions_to_be_concat, 1)
+        def predict_for_a_task(veh, task):
+            veh_x, veh_y, veh_v, veh_phi = veh.x, veh.y, veh.v, veh.phi
+            veh_phi_rad = veh_phi * np.pi / 180.
 
-    def predict_for_a_mode(self, vehs, mode):
-        veh_xs, veh_ys, veh_vs, veh_phis = vehs[:, 0], vehs[:, 1], vehs[:, 2], vehs[:, 3]
-        veh_phis_rad = veh_phis * np.pi / 180.
+            zeros = np.zeros_like(veh_x)
 
-        zeros = np.zeros_like(veh_xs)
+            veh_x_delta = veh_v * STEP_TIME * np.cos(veh_phi_rad)
+            veh_y_delta = veh_v * STEP_TIME * np.sin(veh_phi_rad)
 
-        veh_xs_delta = veh_vs * STEP_TIME * np.cos(veh_phis_rad)
-        veh_ys_delta = veh_vs * STEP_TIME * np.sin(veh_phis_rad)
+            if task  == 'left':
+                veh_phi_rad_delta = np.where(-25 < veh_x < 25, (veh_v / 26.875) * STEP_TIME, zeros)
+            elif task == 'right':
+                veh_phi_rad_delta = np.where(-25 < veh_y < 25, -(veh_v / 19.375) * STEP_TIME, zeros)
+            else:
+                veh_phi_rad_delta = zeros
+            next_veh_x, next_veh_y, next_veh_v, next_veh_phi_rad = \
+                veh_x + veh_x_delta, veh_y + veh_y_delta, veh_v, veh_phi_rad + veh_phi_rad_delta
+            next_veh_phi_rad = np.where(next_veh_phi_rad > np.pi, next_veh_phi_rad - 2 * np.pi, next_veh_phi_rad)
+            next_veh_phi_rad = np.where(next_veh_phi_rad <= -np.pi, next_veh_phi_rad + 2 * np.pi, next_veh_phi_rad)
+            next_veh_phi = next_veh_phi_rad * 180 / np.pi
+            return next_veh_x, next_veh_y, next_veh_v, next_veh_phi
+        if veh_recarray is not None:
+            veh_copy = veh_recarray.copy()
+            for veh in veh_copy:
+                veh_task = route_to_task(veh)
+                next_veh_x, next_veh_y, next_veh_v, next_veh_phi = predict_for_a_task(veh, veh_task)
+                veh.x, veh.y, veh.v, veh.phi = next_veh_x, next_veh_y, next_veh_v, next_veh_phi
+        return veh_copy
+                
+    def plant_model(self, obs, u):
+        obs = self.compute_next_obs(obs, u)
+        return obs
 
-        if mode in ['dl', 'rd', 'ur', 'lu']:
-            veh_phis_rad_delta = np.where(-25 < veh_xs < 25, (veh_vs / 26.875) * STEP_TIME, zeros)
-        elif mode in ['dr', 'ru', 'ul', 'ld']:
-            veh_phis_rad_delta = np.where(-25 < veh_ys < 25, -(veh_vs / 19.375) * STEP_TIME, zeros)
-        else:
-            veh_phis_rad_delta = zeros
-        next_veh_xs, next_veh_ys, next_veh_vs, next_veh_phis_rad = \
-            veh_xs + veh_xs_delta, veh_ys + veh_ys_delta, veh_vs, veh_phis_rad + veh_phis_rad_delta
-        next_veh_phis_rad = np.where(next_veh_phis_rad > np.pi, next_veh_phis_rad - 2 * np.pi, next_veh_phis_rad)
-        next_veh_phis_rad = np.where(next_veh_phis_rad <= -np.pi, next_veh_phis_rad + 2 * np.pi, next_veh_phis_rad)
-        next_veh_phis = next_veh_phis_rad * 180 / np.pi
-        return np.stack([next_veh_xs, next_veh_ys, next_veh_vs, next_veh_phis], 1)
+    def compute_loss(self, obs, actions, i):
+        ego_list = obs[0] # a list [v_x, v_y, r, x, y, phi]
+        veh_recarray = obs[1]
 
-    def plant_model(self, u, x):
-        x_copy = x.copy()
-        x_copy = self.compute_next_obses(x_copy[np.newaxis, :], u[np.newaxis, :])[0]
-        return x_copy
 
-    def compute_loss(self, obses, actions):
-        ego_infos, tracking_infos, veh_infos = obses[:, :self.ego_info_dim], \
-                                               obses[:, self.ego_info_dim:self.ego_info_dim + 3], \
-                                               obses[:, self.ego_info_dim + 3:]
-        steers, a_xs = actions[:, 0], actions[:, 1]
+        steer, a_x = actions[0], actions[1]
         # rewards related to action
-        punish_steer = np.square(steers)
-        punish_a_x = np.square(a_xs)
+        punish_steer = np.square(steer)
+        punish_a_x = np.square(a_x)
 
         # rewards related to ego stability  r
-        punish_yaw_rate = np.square(ego_infos[:, 2])
+        punish_yaw_rate = np.square(ego_list[2])
         # rewards related to tracking error
-        devi_y = np.square(tracking_infos[:, 0])
-        devi_phi = np.square(tracking_infos[:, 1] * np.pi / 180.)
-        devi_v = np.square(tracking_infos[:, 2])
 
-        loss = 0.4*5 *2* devi_y + 0.1*10*5 * devi_phi  + 0.002 * punish_yaw_rate + \
-                  0.001 * punish_steer + 0.005 * punish_a_x
+        x_ref, y_ref, phi_ref = self.future_ref_list[i]
+
+        # print('x, y, phi',ego_list[3:])
+        # print('x_ref, y_ref, phi_ref',x_ref, y_ref, phi_ref)
+        devi_x = (ego_list[3] - x_ref)**2
+        devi_y = (ego_list[4] - y_ref)**2
+        devi_phi = np.square(deal_with_phi(ego_list[5] - phi_ref))
+        devi_v = np.square(ego_list[0] - self.exp_v)
+
+        loss = 200* devi_x + 200* devi_y + 1 * devi_phi + 30* devi_v \
+                + 12 * punish_yaw_rate + 80 * punish_steer + 50 * punish_a_x
         return loss
 
     def cost_function(self, u):
         u = u.reshape(self.horizon, 2) # u.shape (10,2)
         loss = 0.
-        x = self.init_x.copy()
+        obs = self.obs
         for i in range(self.horizon):
             #u_i = u[i] * np.array([0.35, 5.]) - np.array([0., 2])   # u[0].shape (2,)
             u_i = u[i]
-            loss += self.compute_loss(x[np.newaxis, :], u_i[np.newaxis, :])  #x[np.newaxis, :] 变为行向量
-            x = self.plant_model(u_i, x)
-
+            loss += self.compute_loss(obs, u_i, i)
+            obs = self.plant_model(obs, u_i)
         return loss
 
     def constraint_function(self, u):
         u = u.reshape(self.horizon, 2) # u.shape (10,2)
-        x = self.init_x.copy()
-        dist_list = []
+        obs = self.obs
+        dist_array = np.array([])
         for i in range(self.horizon):
             #u_i = u[i] * np.array([0.35, 5.]) - np.array([0., 2])   # u[0].shape (2,)
             u_i = u[i] # u[i].shape (2,)
-            obses = x[np.newaxis, :]
-            ego_infos, tracking_infos, veh_infos = obses[:, :self.ego_info_dim], \
-                                        obses[:, self.ego_info_dim:self.ego_info_dim + 3], \
-                                        obses[:, self.ego_info_dim + 3:]
-            L, W = 4.8, 2.
-            veh2veh = np.zeros_like(veh_infos[:, 0])
-            for veh_index in range(int(np.shape(veh_infos)[1] / self.per_veh_info_dim)):
-                vehs = veh_infos[:, veh_index * self.per_veh_info_dim:(veh_index + 1) * self.per_veh_info_dim]
-                #rela_phis_rad = np.arctan2(vehs[:, 1] - ego_infos[:, 4], vehs[:, 0] - ego_infos[:, 3])
-                #ego_phis_rad = ego_infos[:, 5] * np.pi / 180.
-                #cos_values, sin_values = np.cos(rela_phis_rad - ego_phis_rad), np.sin(rela_phis_rad - ego_phis_rad)
-                dist = np.sqrt(np.square(vehs[:, 0] - ego_infos[:, 3]) + np.square(vehs[:, 1] - ego_infos[:, 4]))
-                dist_list.append(float(dist))
-            x = self.plant_model(u_i, x)
-        dist_array = np.array(dist_list)
+            ego_list = obs[0] # a list [v_x, v_y, r, x, y, phi]
+            veh_recarray = obs[1]
+            if veh_recarray is not None:
+                dist_array = np.concatenate((dist_array, np.sqrt((veh_recarray.x - ego_list[3])**2 + (veh_recarray.y - ego_list[4])**2)), axis=0)
+            obs = self.plant_model(obs, u_i)
         safe_distance = 5 * np.ones_like(dist_array)
-        constraint_list = dist_array - safe_distance
-        return constraint_list# ndarray
+        constraint_array = dist_array - safe_distance
+        return constraint_array# ndarray
 
 
 

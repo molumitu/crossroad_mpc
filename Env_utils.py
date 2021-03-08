@@ -4,8 +4,8 @@
 import numpy as np
 import math
 
-STEP_TIME = 0.01
-L, W = 4.8, 2.0
+STEP_TIME = 0.1
+L, W = 4.0, 1.8
 LANE_WIDTH = 3.75
 LANE_NUMBER = 3
 CROSSROAD_SIZE = 50
@@ -13,7 +13,7 @@ CROSSROAD_SIZE = 50
 
 VEHICLE_MODE_DICT = dict(
     #left=dict(dl=2, du=2, ud=2, ul=2),
-    left  = dict(dl=0, du=0, ud=2, ul=0),
+    left  = dict(dl=1, du=0, ud=2, ul=0),
                          straight=dict(dl=1, du=2, ud=2, ru=2, ur=2),
                          right=dict(dr=1, ur=2, lr=2))
 

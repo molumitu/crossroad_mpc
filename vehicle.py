@@ -1,4 +1,4 @@
-from Env_utils import STEP_TIME
+from Env_utils import STEP_TIME, deal_with_phi
 import numpy as np
 
 
@@ -20,9 +20,9 @@ class VehicleDynamics():
         self.vehicle_params.update(dict(F_zf=F_zf, F_zr=F_zr))
 
     def state_trans(self, states, actions, tau): 
-        v_x, v_y, r, x, y, phi = states[:, 0], states[:, 1], states[:, 2], states[:, 3], states[:, 4], states[:, 5]
+        v_x, v_y, r, x, y, phi = states[0], states[1], states[2], states[3], states[4], states[5]
         phi = phi * np.pi / 180.
-        steer, a_x = actions[:, 0], actions[:, 1]
+        steer, a_x = actions[0], actions[1]
 
         C_f = np.array(self.vehicle_params['C_f'], dtype=np.float32)
         C_r = np.array(self.vehicle_params['C_r'], dtype=np.float32)
@@ -54,11 +54,12 @@ class VehicleDynamics():
                           r + tau * (F_yf * a * np.cos(steer) - F_yr * b)/I_z,
                           x + tau * (v_x * np.cos(phi) - v_y * np.sin(phi)),
                           y + tau * (v_x * np.sin(phi) + v_y * np.cos(phi)),
-                          (phi + tau * r) * 180 / np.pi]
+                          deal_with_phi((phi + tau * r) * 180 / np.pi)]
             v_x, v_y, r, x, y, phi = next_state 
             phi = phi * np.pi /180
 
-        return np.stack(next_state, 1), np.stack([alpha_f, alpha_r, miu_f, miu_r], 1)
+        #return np.stack(next_state, 1), np.stack([alpha_f, alpha_r, miu_f, miu_r], 1)
+        return next_state, [alpha_f, alpha_r, miu_f, miu_r]
 
     def prediction(self, x, u, STEP_TIME): 
         next_state, next_params = self.state_trans(x, u, STEP_TIME)
