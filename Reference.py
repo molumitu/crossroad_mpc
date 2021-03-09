@@ -6,7 +6,7 @@ import numpy as np
 from Env_utils import CROSSROAD_SIZE, LANE_WIDTH, LANE_NUMBER, STEP_TIME, deal_with_phi
 
 class ReferencePath(object):
-    def __init__(self, task, ref_index=0):
+    def __init__(self, task, ref_index):
         self.exp_v = 8.
         self.task = task
         self.path_list = []
@@ -73,7 +73,7 @@ class ReferencePath(object):
         future_ref_list = []
         current_indexs = np.array(current_index)
         for _ in range(n):
-            current_indexs += 70
+            current_indexs += 80
             current_indexs = np.where(current_indexs >= len(self.path[0]) - 1, len(self.path[0]) - 1, current_indexs)  # 避免仿真末尾报错
             future_ref_list.append(self.indexs2points(current_indexs))
         return current_point, future_ref_list

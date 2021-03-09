@@ -114,9 +114,9 @@ class ModelPredictiveControl:
         devi_y = (ego_list[4] - y_ref)**2
         devi_phi = np.square(deal_with_phi(ego_list[5] - phi_ref))
         devi_v = np.square(ego_list[0] - self.exp_v)
-
-        loss = 200* devi_x + 200* devi_y + 1 * devi_phi + 30* devi_v \
-                + 12 * punish_yaw_rate + 80 * punish_steer + 50 * punish_a_x
+        #x:{devi_x} y:{devi_y} phi:{devi_phi} v:{devi_v} yaw_rate:{punish_yaw_rate} steer:{steer}  a_x{a_x}
+        loss = 20* devi_x + 20* devi_y + 0.01 * devi_phi + 30* devi_v \
+                    #+ 120 * punish_yaw_rate + 800 * punish_steer + 50 * punish_a_x
         return loss
 
     def cost_function(self, u):
@@ -126,8 +126,8 @@ class ModelPredictiveControl:
         for i in range(self.horizon):
             #u_i = u[i] * np.array([0.35, 5.]) - np.array([0., 2])   # u[0].shape (2,)
             u_i = u[i]
-            loss += self.compute_loss(obs, u_i, i)
             obs = self.plant_model(obs, u_i)
+            loss += self.compute_loss(obs, u_i, i)
         return loss
 
     def constraint_function(self, u):
@@ -137,11 +137,11 @@ class ModelPredictiveControl:
         for i in range(self.horizon):
             #u_i = u[i] * np.array([0.35, 5.]) - np.array([0., 2])   # u[0].shape (2,)
             u_i = u[i] # u[i].shape (2,)
+            obs = self.plant_model(obs, u_i)
             ego_list = obs[0] # a list [v_x, v_y, r, x, y, phi]
             veh_recarray = obs[1]
             if veh_recarray is not None:
                 dist_array = np.concatenate((dist_array, np.sqrt((veh_recarray.x - ego_list[3])**2 + (veh_recarray.y - ego_list[4])**2)), axis=0)
-            obs = self.plant_model(obs, u_i)
         safe_distance = 5 * np.ones_like(dist_array)
         constraint_array = dist_array - safe_distance
         return constraint_array# ndarray

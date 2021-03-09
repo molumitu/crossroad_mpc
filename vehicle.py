@@ -21,6 +21,7 @@ class VehicleDynamics():
 
     def state_trans(self, states, actions, tau): 
         v_x, v_y, r, x, y, phi = states[0], states[1], states[2], states[3], states[4], states[5]
+        phi = deal_with_phi(phi)
         phi = phi * np.pi / 180.
         steer, a_x = actions[0], actions[1]
 
