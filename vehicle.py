@@ -1,7 +1,7 @@
 from Env_utils import STEP_TIME, deal_with_phi
 import numpy as np
 
-
+###### 务必和matlab保持一致
 class VehicleDynamics():
     def __init__(self, ):
         self.vehicle_params = dict(#C_f=-128915.5,  # front wheel cornering stiffness [N/rad]
@@ -45,9 +45,11 @@ class VehicleDynamics():
         elif STEP_TIME == 0.01:
             _freq = 1
         tau = tau / _freq
+        eps = 1e-8
         for _ in range(_freq):
-            alpha_f = np.arctan((v_y + a * r) / (v_x+1e-8)) - steer
-            alpha_r = np.arctan((v_y - b * r) / (v_x+1e-8))
+            eps_signed = np.copysign(eps, v_x)
+            alpha_f = np.arctan((v_y + a * r) / (v_x+eps_signed)) * np.sign(v_x) - steer * np.tanh(4* v_x)
+            alpha_r = (np.arctan((v_y - b * r) / (v_x+eps_signed))) * np.sign(v_x)
             F_yf = alpha_f * C_f
             F_yr = alpha_r * C_r
             next_state = [v_x + tau * (a_x + v_y * r - alpha_f * C_f * np.sin(steer) / mass),

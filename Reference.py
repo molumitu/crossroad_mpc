@@ -71,11 +71,26 @@ class ReferencePath(object):
     def future_ref_points(self, ego_xs, ego_ys, n):  # 用于在确定当前点后，找到接下来预测时域中的n=horizons个参考点
         current_index, current_point = self.find_closest_point(ego_xs, ego_ys)
         future_ref_list = []
-        current_indexs = np.array(current_index)
+        #### 给单点， 作切线当作ref
+        next_x, next_y, next_phi = self.indexs2points(np.array(current_index + 80))
+        next_phi_rad = next_phi / 180. * np.pi
         for _ in range(n):
-            current_indexs += 80
-            current_indexs = np.where(current_indexs >= len(self.path[0]) - 1, len(self.path[0]) - 1, current_indexs)  # 避免仿真末尾报错
-            future_ref_list.append(self.indexs2points(current_indexs))
+            future_ref_list.append((next_x, next_y, next_phi))
+            next_x +=  0.8* np.cos(next_phi_rad)
+            next_y +=  0.8* np.sin(next_phi_rad)
+
+        ## 给未来horizon个ref_points
+        # regulator_indexs = current_indexs + 80
+        # for _ in range(n):
+        #     future_ref_list.append(self.indexs2points(regulator_indexs))
+
+
+        # #### 给单点作为horizon
+        # current_indexs = np.array(current_index+ 80 * 10)
+        # for _ in range(n):
+        #     current_indexs += 0
+        #     current_indexs = np.where(current_indexs >= len(self.path[0]) - 1, len(self.path[0]) - 1, current_indexs)  # 避免仿真末尾报错
+        #     future_ref_list.append(self.indexs2points(current_indexs))
         return current_point, future_ref_list
 
     def indexs2points(self, indexs):  #根据index 得到轨迹点的 x_ref, y_ref, phi_ref

@@ -11,51 +11,51 @@ LANE_NUMBER = 3
 CROSSROAD_SIZE = 50
 
 
-VEHICLE_MODE_DICT = dict(
-    #left=dict(dl=2, du=2, ud=2, ul=2),
-    left  = dict(dl=1, du=0, ud=2, ul=0),
-                         straight=dict(dl=1, du=2, ud=2, ru=2, ur=2),
-                         right=dict(dr=1, ur=2, lr=2))
+# VEHICLE_MODE_DICT = dict(
+#     #left=dict(dl=2, du=2, ud=2, ul=2),
+#     left  = dict(dl=1, du=0, ud=2, ul=0),
+#                          straight=dict(dl=1, du=2, ud=2, ru=2, ur=2),
+#                          right=dict(dr=1, ur=2, lr=2))
 
 
-def dict2flat(inp):
-    out = []
-    for key, val in inp.items():
-        out.extend([key]*val)
-    return out
+# def dict2flat(inp):
+#     out = []
+#     for key, val in inp.items():
+#         out.extend([key]*val)
+#     return out
 
 
-def dict2num(inp):
-    out = 0
-    for _, val in inp.items():
-        out += val
-    return out
+# def dict2num(inp):
+#     out = 0
+#     for _, val in inp.items():
+#         out += val
+#     return out
 
 
-VEH_NUM = dict(left=dict2num(VEHICLE_MODE_DICT['left']),
-               straight=dict2num(VEHICLE_MODE_DICT['straight']),
-               right=dict2num(VEHICLE_MODE_DICT['right']))
+# VEH_NUM = dict(left=dict2num(VEHICLE_MODE_DICT['left']),
+#                straight=dict2num(VEHICLE_MODE_DICT['straight']),
+#                right=dict2num(VEHICLE_MODE_DICT['right']))
 
-VEHICLE_MODE_LIST = dict(left=dict2flat(VEHICLE_MODE_DICT['left']),
-                         straight=dict2flat(VEHICLE_MODE_DICT['straight']),
-                         right=dict2flat(VEHICLE_MODE_DICT['right']))
-# Things related to lane number: static path generation (which further influences obs initialization),
-# observation formulation (especially other vehicles selection and number), rewards formulation
-# other vehicle prediction
-# feasibility judgement
-# the sumo files, obviously,
-# the render func,
-# it is hard to unify them using one set of code, better be a case-by-case setting.
+# VEHICLE_MODE_LIST = dict(left=dict2flat(VEHICLE_MODE_DICT['left']),
+#                          straight=dict2flat(VEHICLE_MODE_DICT['straight']),
+#                          right=dict2flat(VEHICLE_MODE_DICT['right']))
+# # Things related to lane number: static path generation (which further influences obs initialization),
+# # observation formulation (especially other vehicles selection and number), rewards formulation
+# # other vehicle prediction
+# # feasibility judgement
+# # the sumo files, obviously,
+# # the render func,
+# # it is hard to unify them using one set of code, better be a case-by-case setting.
 
-ROUTE2MODE = {('1o', '2i'): 'dr', ('1o', '3i'): 'du', ('1o', '4i'): 'dl',
-              ('2o', '1i'): 'rd', ('2o', '3i'): 'ru', ('2o', '4i'): 'rl',
-              ('3o', '1i'): 'ud', ('3o', '2i'): 'ur', ('3o', '4i'): 'ul',
-              ('4o', '1i'): 'ld', ('4o', '2i'): 'lr', ('4o', '3i'): 'lu'}
+# ROUTE2MODE = {('1o', '2i'): 'dr', ('1o', '3i'): 'du', ('1o', '4i'): 'dl',
+#               ('2o', '1i'): 'rd', ('2o', '3i'): 'ru', ('2o', '4i'): 'rl',
+#               ('3o', '1i'): 'ud', ('3o', '2i'): 'ur', ('3o', '4i'): 'ul',
+#               ('4o', '1i'): 'ld', ('4o', '2i'): 'lr', ('4o', '3i'): 'lu'}
 
-MODE2TASK = {'dr': 'right', 'du': 'straight', 'dl': 'left',
-             'rd': 'left', 'ru': 'right', 'rl': ' straight',
-             'ud': 'straight', 'ur': 'left', 'ul': 'right',
-             'ld': 'right', 'lr': 'straight', 'lu': 'left'}
+# MODE2TASK = {'dr': 'right', 'du': 'straight', 'dl': 'left',
+#              'rd': 'left', 'ru': 'right', 'rl': ' straight',
+#              'ud': 'straight', 'ur': 'left', 'ul': 'right',
+#              'ld': 'right', 'lr': 'straight', 'lu': 'left'}
 
 
 def judge_feasible(orig_x, orig_y, task):  # map dependant

@@ -33,7 +33,7 @@ class Traffic(object):
         self.random_traffic = None
         self.sim_time = 0
         self.n_ego_vehicles = defaultdict(list)
-
+        self.n_ego_vehicles_list = defaultdict(list)
         self.step_time = str(STEP_TIME)
         self.collision_flag = False
         self.n_ego_collision_flag = {}
@@ -86,11 +86,11 @@ class Traffic(object):
                                                 # traci.constants.VAR_ROUTE_INDEX
                                                 ],
                                        0, 2147483647)
-        while traci.simulation.getTime() < 100:
+        while traci.simulation.getTime() < 1:
             if traci.simulation.getTime() < 80:
-                traci.trafficlight.setPhase('0', 2)
-            else:
                 traci.trafficlight.setPhase('0', 0)
+            else:
+                traci.trafficlight.setPhase('0', 2)
 
             traci.simulationStep()
         
@@ -139,6 +139,7 @@ class Traffic(object):
     def init_traffic(self, init_n_ego_dict):
         self.sim_time = 0
         self.n_ego_vehicles = defaultdict(list)
+        self.n_ego_vehicles_list = defaultdict(list)
         self.collision_flag = False
         self.n_ego_collision_flag = {}
         self.collision_ego_id = None
@@ -179,6 +180,7 @@ class Traffic(object):
 
     def _get_vehicles(self):
         self.n_ego_vehicles = defaultdict(list)  # 清零
+        self.n_ego_vehicles_list = defaultdict(list)
         veh_infos = traci.vehicle.getContextSubscriptionResults('collector')  # 最原始的信息
         traci.vehicle.setColor('collector',(255,0,0))
 
@@ -210,6 +212,7 @@ class Traffic(object):
                             and (y > -CROSSROAD_SIZE/2 - 10) and (x > -CROSSROAD_SIZE/2 -10))):
                         traci.vehicle.setColor(str(veh),(255,0,0))
                         self.n_ego_vehicles[egoID].append(dict(veh_ID=veh, x=x, y=y, v=v, phi=a, l=length, w=width, route=route))
+                        self.n_ego_vehicles_list[egoID].append([x, y, v, a, route])
 
     def _get_traffic_light(self):
         self.v_light = traci.trafficlight.getPhase('0')

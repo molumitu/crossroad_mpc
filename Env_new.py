@@ -6,7 +6,7 @@ from gym.utils import seeding
 from vehicle import VehicleDynamics
 from Reference import ReferencePath
 from Env_utils import shift_coordination, rotate_coordination, rotate_and_shift_coordination, deal_with_phi, \
-    L, W, CROSSROAD_SIZE, LANE_WIDTH, LANE_NUMBER, judge_feasible, MODE2TASK, VEHICLE_MODE_DICT, VEH_NUM, STEP_TIME
+    L, W, CROSSROAD_SIZE, LANE_WIDTH, LANE_NUMBER, judge_feasible,  STEP_TIME
 from traffic import Traffic
 warnings.filterwarnings("ignore")
 
@@ -35,7 +35,7 @@ class Crossroad():
                                                self.dynamics.vehicle_params['miu'],
                                                self.dynamics.vehicle_params['miu']]  #alpha_f, alpha_r, miu_f, miu_r
                                               )
-        self.all_vehicles = self.traffic.n_ego_vehicles['ego']  # 多车的话，在这里要给出多个ID
+        self.all_vehicles = self.traffic.n_ego_vehicles['ego']
         self.ego_dynamics = ego_dynamics
 
         self.all_info = None #打包了自车信息和周车信息
@@ -143,7 +143,7 @@ class Crossroad():
         action = np.array([steer, a_x], dtype=np.float32)
         next_ego_state, next_ego_params = self.dynamics.prediction(state, action, STEP_TIME)
         #next_ego_state, next_ego_params = next_ego_state[0],  next_ego_params[0]
-        next_ego_state[0] = next_ego_state[0] if next_ego_state[0] >= 0 else 0.  # 保证第一个参数v_x要大于等于0
+        #next_ego_state[0] = next_ego_state[0] if next_ego_state[0] >= 0 else 0.  # 保证第一个参数v_x要大于等于0
         next_ego_state[-1] = deal_with_phi(next_ego_state[-1])  # 对phi再进行一次scale
         return next_ego_state, next_ego_params
 
