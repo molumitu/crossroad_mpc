@@ -61,31 +61,31 @@ class ReferencePath(object):
                 self.path_list.append(planned_trj)
                 self.path_len_list.append(len(total_x))
         
-    def find_closest_point(self, xs, ys):  # radio用来将轨迹点稀疏化，但是不需要
-        xs_array = float(xs) * np.ones_like(self.path[0])
-        ys_array = float(ys) * np.ones_like(self.path[1])
-        dist_array = np.square(xs_array - self.path[0]) + np.square(ys_array - self.path[1])
+    def find_closest_point(self, xs, ys, path_index = 0):  # radio用来将轨迹点稀疏化，但是不需要
+        xs_array = float(xs) * np.ones_like(self.path_list[path_index][0])
+        ys_array = float(ys) * np.ones_like(self.path_list[path_index][1])
+        dist_array = np.square(xs_array - self.path_list[path_index][0]) + np.square(ys_array - self.path[1])
         indexs = np.argmin(dist_array,0)
         return indexs, self.indexs2points(indexs)
 
-    def future_ref_points(self, ego_xs, ego_ys, n):  # 用于在确定当前点后，找到接下来预测时域中的n=horizons个参考点
+    def future_ref_points(self, ego_xs, ego_ys, n, path_index = 0):  # 用于在确定当前点后，找到接下来预测时域中的n=horizons个参考点
         current_index, current_point = self.find_closest_point(ego_xs, ego_ys)
         future_ref_list = []
-        #### 给单点， 作切线当作ref
-        next_x, next_y, next_phi = self.indexs2points(np.array(current_index + 80))
-        next_phi_rad = next_phi / 180. * np.pi
-        for _ in range(n):
-            future_ref_list.append((next_x, next_y, next_phi))
-            next_x +=  0.8* np.cos(next_phi_rad)
-            next_y +=  0.8* np.sin(next_phi_rad)
+        # #### 给单点， 作切线当作ref
+        # next_x, next_y, next_phi = self.indexs2points(np.array(current_index + 80))
+        # next_phi_rad = next_phi / 180. * np.pi
+        # for _ in range(n):
+        #     future_ref_list.append((next_x, next_y, next_phi))
+        #     next_x +=  0.8* np.cos(next_phi_rad)
+        #     next_y +=  0.8* np.sin(next_phi_rad)
 
         ## 给未来horizon个ref_points
-        # regulator_indexs = current_indexs + 80
-        # for _ in range(n):
-        #     future_ref_list.append(self.indexs2points(regulator_indexs))
+        for _ in range(n):
+            current_index = current_index + 80
+            future_ref_list.append(self.indexs2points(current_index))
 
 
-        # #### 给单点作为horizon
+        # # #### 给单点作为horizon
         # current_indexs = np.array(current_index+ 80 * 10)
         # for _ in range(n):
         #     current_indexs += 0
@@ -93,11 +93,19 @@ class ReferencePath(object):
         #     future_ref_list.append(self.indexs2points(current_indexs))
         return current_point, future_ref_list
 
-    def indexs2points(self, indexs):  #根据index 得到轨迹点的 x_ref, y_ref, phi_ref
-        indexs = np.where(indexs >= 0, indexs, 0)
-        indexs = np.where(indexs < len(self.path[0]), indexs, len(self.path[0])-1)  # 避免仿真末尾报错
-        points = self.path[0][indexs], self.path[1][indexs], self.path[2][indexs]
-        return (points[0], points[1], points[2])
+
+    def multi_future_ref_points(self, ego_xs, ego_ys, n):
+        _, future_ref_list = self.future_ref_points(ego_xs, ego_ys, n, path_index = 0)
+        _, future_ref_list_1 = self.future_ref_points(ego_xs, ego_ys, n, path_index = 1)
+        _, future_ref_list_2 = self.future_ref_points(ego_xs, ego_ys, n, path_index = 2)
+        return [future_ref_list, future_ref_list_1, future_ref_list_2]
+
+
+    def indexs2points(self, index):  #根据index 得到轨迹点的 x_ref, y_ref, phi_ref
+        index = np.where(index >= 0, index, 0)
+        index = np.where(index < len(self.path[0]), index, len(self.path[0])-1)  # 避免仿真末尾报错
+        point = self.path[0][index], self.path[1][index], self.path[2][index]
+        return (point[0], point[1], point[2])
 
     def tracking_error_vector(self, ego_xs, ego_ys, ego_phis, ego_vs, ref_point):
         def two2one(ref_xs, ref_ys):  

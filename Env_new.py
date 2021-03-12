@@ -29,7 +29,9 @@ class Crossroad():
                                                self.init_state['ego']['r'],
                                                self.init_state['ego']['x'],
                                                self.init_state['ego']['y'],
-                                               self.init_state['ego']['phi']],
+                                               self.init_state['ego']['phi'],
+                                               self.init_state['ego']['steer'],
+                                               self.init_state['ego']['a_x']],
                                               [0,
                                                0,
                                                self.dynamics.vehicle_params['miu'],
@@ -50,7 +52,7 @@ class Crossroad():
         self.reward = 0
         self.reward_info = None
 
-        self.ego_info_dim = 6
+        self.ego_info_dim = 8
 
 
     def _get_ego_dynamics(self, next_ego_state, next_ego_params):  # update 
@@ -60,6 +62,8 @@ class Crossroad():
                    x=next_ego_state[3],
                    y=next_ego_state[4],
                    phi=next_ego_state[5],
+                   steer=next_ego_state[6],
+                   a_x=next_ego_state[7],                   
                    l=L,
                    w=W,
                    alpha_f=next_ego_params[0],
@@ -106,9 +110,11 @@ class Crossroad():
         ego_x = self.ego_dynamics['x']
         ego_y = self.ego_dynamics['y']
         ego_phi = self.ego_dynamics['phi']
-        ego_feature = [ego_v_x, ego_v_y, ego_r, ego_x, ego_y, ego_phi]
-        self.ego_info_dim = 6
-        return np.array(ego_feature, dtype=np.float32)
+        ego_steer = self.ego_dynamics['steer']
+        ego_a_x = self.ego_dynamics['a_x']        
+        ego_feature = [ego_v_x, ego_v_y, ego_r, ego_x, ego_y, ego_phi, ego_steer, ego_a_x]
+        self.ego_info_dim = 8
+        return np.array(ego_feature)
 
 
     def _construct_veh_recarray(self):
@@ -138,13 +144,14 @@ class Crossroad():
         current_x = self.ego_dynamics['x']
         current_y = self.ego_dynamics['y']
         current_phi = self.ego_dynamics['phi']
+        current_steer = self.ego_dynamics['steer']
+        current_a_x = self.ego_dynamics['a_x']        
         steer, a_x = trans_action
-        state = np.array([current_v_x, current_v_y, current_r, current_x, current_y, current_phi], dtype=np.float32)
-        action = np.array([steer, a_x], dtype=np.float32)
+        state = np.array([current_v_x, current_v_y, current_r, current_x, current_y, current_phi, current_steer, current_a_x])
+        action = np.array([steer, a_x])
         next_ego_state, next_ego_params = self.dynamics.prediction(state, action, STEP_TIME)
         #next_ego_state, next_ego_params = next_ego_state[0],  next_ego_params[0]
         #next_ego_state[0] = next_ego_state[0] if next_ego_state[0] >= 0 else 0.  # 保证第一个参数v_x要大于等于0
-        next_ego_state[-1] = deal_with_phi(next_ego_state[-1])  # 对phi再进行一次scale
         return next_ego_state, next_ego_params
 
 

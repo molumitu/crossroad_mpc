@@ -86,7 +86,7 @@ class Traffic(object):
                                                 # traci.constants.VAR_ROUTE_INDEX
                                                 ],
                                        0, 2147483647)
-        while traci.simulation.getTime() < 1:
+        while traci.simulation.getTime() < 5:
             if traci.simulation.getTime() < 80:
                 traci.trafficlight.setPhase('0', 0)
             else:
@@ -209,7 +209,8 @@ class Traffic(object):
                     traci.vehicle.setColor(str(veh),(255,255,255))
                     if  sqrt((x_ego-x) ** 2 + (y_ego-y) ** 2) < 25 and \
                         (((route[1] == '4i') and (x > -CROSSROAD_SIZE/2 - 10)) or ((route[1] == '1i') \
-                            and (y > -CROSSROAD_SIZE/2 - 10) and (x > -CROSSROAD_SIZE/2 -10))):
+                            and (y > -CROSSROAD_SIZE/2 - 10) and (x > -CROSSROAD_SIZE/2 -10)))\
+                            and x < (x_ego + 1)  and y > (y_ego):
                         traci.vehicle.setColor(str(veh),(255,0,0))
                         self.n_ego_vehicles[egoID].append(dict(veh_ID=veh, x=x, y=y, v=v, phi=a, l=length, w=width, route=route))
                         self.n_ego_vehicles_list[egoID].append([x, y, v, a, route])
