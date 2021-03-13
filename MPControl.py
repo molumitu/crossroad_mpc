@@ -16,7 +16,7 @@ class ModelPredictiveControl:
         self.per_veh_info_dim = 4  # x, y, v_x, phi
         self.future_ref_list = None
         self.current_ref_point = None
-        self.exp_v = 7.8
+        self.exp_v = 8
 
     def reset_init_ref(self, obs, ref_index):
         self.obs = obs

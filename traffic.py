@@ -42,6 +42,8 @@ class Traffic(object):
 
         self.first_add = True
         seed = 5
+        import time
+        start = time.time()
         try:
             traci.start(
                 [SUMO_BINARY, "-c", SUMOCFG_DIR,
@@ -86,7 +88,11 @@ class Traffic(object):
                                                 # traci.constants.VAR_ROUTE_INDEX
                                                 ],
                                        0, 2147483647)
-        while traci.simulation.getTime() < 5:
+        
+        end = time.time()
+        print("Sumo startup time: ", end - start)
+
+        while traci.simulation.getTime() < 16:
             if traci.simulation.getTime() < 80:
                 traci.trafficlight.setPhase('0', 0)
             else:
