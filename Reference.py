@@ -7,7 +7,7 @@ from Env_utils import CROSSROAD_SIZE, LANE_WIDTH, LANE_NUMBER, STEP_TIME, deal_w
 
 class ReferencePath(object):
     def __init__(self, task, ref_index):
-        self.exp_v = 8.
+        self.exp_v = 6.
         self.task = task
         self.path_list = []
         self.path_len_list = []
@@ -24,7 +24,7 @@ class ReferencePath(object):
         sl = 40  # straight line length, equal to extensions
         meter_pointnum_ratio = 100 
         end_points_num = int(sl * meter_pointnum_ratio) + 1
-        arc_points_num = 4222 +1
+        arc_points_num = int((4222 +1))
         # the length of the arc is 42.2152m
         R = CROSSROAD_SIZE/2 + LANE_WIDTH/2
         if task == 'left':
@@ -72,21 +72,21 @@ class ReferencePath(object):
         current_index, current_point = self.find_closest_point(ego_xs, ego_ys)
         future_ref_list = []
         # #### 给单点， 作切线当作ref
-        # next_x, next_y, next_phi = self.indexs2points(np.array(current_index + 80))
-        # next_phi_rad = next_phi / 180. * np.pi
-        # for _ in range(n):
-        #     future_ref_list.append((next_x, next_y, next_phi))
-        #     next_x +=  0.8* np.cos(next_phi_rad)
-        #     next_y +=  0.8* np.sin(next_phi_rad)
-
-        ## 给未来horizon个ref_points
+        next_x, next_y, next_phi = self.indexs2points(np.array(current_index + 80))
+        next_phi_rad = next_phi / 180. * np.pi
         for _ in range(n):
-            current_index = current_index + 80
-            future_ref_list.append(self.indexs2points(current_index))
+            future_ref_list.append((next_x, next_y, next_phi))
+            next_x +=  0.6* np.cos(next_phi_rad)
+            next_y +=  0.6* np.sin(next_phi_rad)
+
+        # ## 给未来horizon个ref_points
+        # for _ in range(n):
+        #     current_index = current_index + 60
+        #     future_ref_list.append(self.indexs2points(current_index))
 
 
         # # #### 给单点作为horizon
-        # current_indexs = np.array(current_index+ 80 * 10)
+        # current_indexs = np.array(current_index+ 60 * 10)
         # for _ in range(n):
         #     current_indexs += 0
         #     current_indexs = np.where(current_indexs >= len(self.path[0]) - 1, len(self.path[0]) - 1, current_indexs)  # 避免仿真末尾报错

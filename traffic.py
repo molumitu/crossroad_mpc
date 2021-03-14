@@ -44,7 +44,9 @@ class Traffic(object):
         seed = 5
         import time
         start = time.time()
+        port = sumolib.miscutils.getFreeSocketPort()
         try:
+            
             traci.start(
                 [SUMO_BINARY, "-c", SUMOCFG_DIR,
                  "--step-length", self.step_time,
@@ -56,10 +58,10 @@ class Traffic(object):
                  "--no-step-log",
                  "--collision.action", "remove"
                  '--seed', str(int(seed))
-                 ], numRetries=5)  # '--seed', str(int(seed))
+                 ], port=port, numRetries=5)  # '--seed', str(int(seed))
         except FatalTraCIError:
             print('Retry by other port')
-            port = sumolib.miscutils.getFreeSocketPort()
+            # port = sumolib.miscutils.getFreeSocketPort()
             traci.start(
                 [SUMO_BINARY, "-c", SUMOCFG_DIR,
                  "--step-length", self.step_time,
