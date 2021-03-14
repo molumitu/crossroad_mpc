@@ -43,7 +43,7 @@ class ModelPredictiveControl:
         return next_obs
 
     def ego_predict(self, ego_list, actions):
-        ego_next_state, _ = self.vehicle_dynamics.prediction(ego_list, actions, STEP_TIME)
+        ego_next_state = self.vehicle_dynamics.state_trans(ego_list, actions, STEP_TIME)
         v_x, v_y, r, x, y, phi = ego_next_state[0], ego_next_state[1], ego_next_state[2],\
                                      ego_next_state[3], ego_next_state[4], ego_next_state[5]
         ego_next_list = [v_x, v_y, r, x, y, phi]                          

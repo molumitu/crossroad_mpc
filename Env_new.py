@@ -1,13 +1,12 @@
 import warnings
-import gym
 import matplotlib.pyplot as plt
 import numpy as np
-from gym.utils import seeding
 from vehicle import VehicleDynamics
 from Reference import ReferencePath
 from Env_utils import shift_coordination, rotate_coordination, rotate_and_shift_coordination, deal_with_phi, \
     L, W, CROSSROAD_SIZE, LANE_WIDTH, LANE_NUMBER, judge_feasible,  STEP_TIME
 from traffic import Traffic
+from mpc_cpp import state_trans_LPF
 warnings.filterwarnings("ignore")
 
 
@@ -32,10 +31,6 @@ class Crossroad():
                                                self.init_state['ego']['phi'],
                                                self.init_state['ego']['steer'],
                                                self.init_state['ego']['a_x']],
-                                              [0,
-                                               0,
-                                               self.dynamics.vehicle_params['miu'],
-                                               self.dynamics.vehicle_params['miu']]  #alpha_f, alpha_r, miu_f, miu_r
                                               )
         self.all_vehicles = self.traffic.n_ego_vehicles['ego']
         self.ego_dynamics = ego_dynamics
@@ -55,7 +50,7 @@ class Crossroad():
         self.ego_info_dim = 8
 
 
-    def _get_ego_dynamics(self, next_ego_state, next_ego_params):  # update 
+    def _get_ego_dynamics(self, next_ego_state):  # update 
         out = dict(v_x=next_ego_state[0],
                    v_y=next_ego_state[1],
                    r=next_ego_state[2],
@@ -66,33 +61,30 @@ class Crossroad():
                    a_x=next_ego_state[7],                   
                    l=L,
                    w=W,
-                   alpha_f=next_ego_params[0],
-                   alpha_r=next_ego_params[1],
-                   miu_f=next_ego_params[2],
-                   miu_r=next_ego_params[3],)
-        miu_f, miu_r = out['miu_f'], out['miu_r']
-        F_zf, F_zr = self.dynamics.vehicle_params['F_zf'], self.dynamics.vehicle_params['F_zr']
-        C_f, C_r = self.dynamics.vehicle_params['C_f'], self.dynamics.vehicle_params['C_r']
-        alpha_f_bound, alpha_r_bound = 3 * miu_f * F_zf / C_f, 3 * miu_r * F_zr / C_r
-        r_bound = miu_r * self.dynamics.vehicle_params['g'] / (abs(out['v_x'])+1e-8)
+                   )
+        # miu_f, miu_r = out['miu_f'], out['miu_r']
+        # F_zf, F_zr = self.dynamics.vehicle_params['F_zf'], self.dynamics.vehicle_params['F_zr']
+        # C_f, C_r = self.dynamics.vehicle_params['C_f'], self.dynamics.vehicle_params['C_r']
+        # alpha_f_bound, alpha_r_bound = 3 * miu_f * F_zf / C_f, 3 * miu_r * F_zr / C_r
+        # r_bound = miu_r * self.dynamics.vehicle_params['g'] / (abs(out['v_x'])+1e-8)
 
-        l, w, x, y, phi = out['l'], out['w'], out['x'], out['y'], out['phi']
+        # l, w, x, y, phi = out['l'], out['w'], out['x'], out['y'], out['phi']
 
-        def cal_corner_point_of_ego_car():
-            x0, y0, a0 = rotate_and_shift_coordination(l / 2, w / 2, 0, -x, -y, -phi)
-            x1, y1, a1 = rotate_and_shift_coordination(l / 2, -w / 2, 0, -x, -y, -phi)
-            x2, y2, a2 = rotate_and_shift_coordination(-l / 2, w / 2, 0, -x, -y, -phi)
-            x3, y3, a3 = rotate_and_shift_coordination(-l / 2, -w / 2, 0, -x, -y, -phi)
-            return (x0, y0), (x1, y1), (x2, y2), (x3, y3)
-        Corner_point = cal_corner_point_of_ego_car()
-        out.update(dict(alpha_f_bound=alpha_f_bound,
-                        alpha_r_bound=alpha_r_bound,
-                        r_bound=r_bound,
-                        Corner_point=Corner_point))
+        # def cal_corner_point_of_ego_car():
+        #     x0, y0, a0 = rotate_and_shift_coordination(l / 2, w / 2, 0, -x, -y, -phi)
+        #     x1, y1, a1 = rotate_and_shift_coordination(l / 2, -w / 2, 0, -x, -y, -phi)
+        #     x2, y2, a2 = rotate_and_shift_coordination(-l / 2, w / 2, 0, -x, -y, -phi)
+        #     x3, y3, a3 = rotate_and_shift_coordination(-l / 2, -w / 2, 0, -x, -y, -phi)
+        #     return (x0, y0), (x1, y1), (x2, y2), (x3, y3)
+        # Corner_point = cal_corner_point_of_ego_car()
+        # out.update(dict(alpha_f_bound=alpha_f_bound,
+        #                 alpha_r_bound=alpha_r_bound,
+        #                 r_bound=r_bound,
+        #                 Corner_point=Corner_point))
         self.ego_dynamics = out  # 完成自车动力学参数的更新
         return out
 
-    def _get_all_info(self):  # used to update info, must be called every timestep before _get_obs
+    def _get_all_info(self): 
         all_info = dict(all_vehicles=self.all_vehicles,
                         ego_dynamics=self.ego_dynamics,
                         v_light=self.v_light)
@@ -149,17 +141,15 @@ class Crossroad():
         steer, a_x = trans_action
         state = np.array([current_v_x, current_v_y, current_r, current_x, current_y, current_phi, current_steer, current_a_x])
         action = np.array([steer, a_x])
-        next_ego_state, next_ego_params = self.dynamics.prediction(state, action, STEP_TIME)
-        #next_ego_state, next_ego_params = next_ego_state[0],  next_ego_params[0]
-        #next_ego_state[0] = next_ego_state[0] if next_ego_state[0] >= 0 else 0.  # 保证第一个参数v_x要大于等于0
-        return next_ego_state, next_ego_params
+        next_ego_state, next_ego_param = state_trans_LPF(state, action)
+        return next_ego_state
 
 
     def step(self, action):
         self.action = action
 
-        next_ego_state, next_ego_params = self._get_next_ego_state(self.action)
-        ego_dynamics = self._get_ego_dynamics(next_ego_state, next_ego_params)
+        next_ego_state = self._get_next_ego_state(self.action)
+        ego_dynamics = self._get_ego_dynamics(next_ego_state)
         self.traffic.set_own_car(dict(ego=ego_dynamics))
 
         self.traffic.sim_step()

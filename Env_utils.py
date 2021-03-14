@@ -41,7 +41,7 @@ CROSSROAD_SIZE = 50
 #                          right=dict2flat(VEHICLE_MODE_DICT['right']))
 # # Things related to lane number: static path generation (which further influences obs initialization),
 # # observation formulation (especially other vehicles selection and number), rewards formulation
-# # other vehicle prediction
+# # other vehicle predict
 # # feasibility judgement
 # # the sumo files, obviously,
 # # the render func,

@@ -6,7 +6,7 @@ import numpy as np
 from scipy.optimize import minimize
 from Env_new import Crossroad
 from Env_utils import L, STEP_TIME,W, deal_with_phi
-from MPControl import ModelPredictiveControl   # 太慢了
+#from MPControl import ModelPredictiveControl   # 太慢了
 from mpc_to_matlab import mpc_cost_function, mpc_constraints  # 只是把python类变成了函数，一样慢
 
 import mpc_cpp
@@ -57,7 +57,7 @@ def set_ego_init_state(ref):
     x, y, phi = ref.indexs2points(random_index)
     steer = 0.
     a_x = 0.
-    v = 8. 
+    v = 6. 
     if ref.task == 'left':
         routeID = 'dl'
     elif ref.task == 'straight':
@@ -79,7 +79,7 @@ def set_ego_init_state(ref):
                             ))    # 这里指出了自车的名字叫ego, 这里也可以加多车
 
 def run_mpc():
-    step_length = 160
+    step_length = 120
     horizon = 20
 
     task = 'left'
@@ -99,7 +99,7 @@ def run_mpc():
     obs = env.obs    # 自车的状态list， 周车信息的recarray 包含x,y,v,phi
 
     #mpc = ModelPredictiveControl(obs, horizon, ref, task = 'left')
-    bounds = [(-0.31, 0.31), (-7.1, 3.1)] * horizon
+    bounds = [(-0.26, 0.26), (-6.1, 2.8)] * horizon
     u_init = np.zeros((horizon, 2))
 
 
@@ -108,7 +108,7 @@ def run_mpc():
     result_array = np.zeros((step_length,10+horizon*5))
 
     Q = np.array([10, 10, 0., 0., 0])
-    R = np.array([0.1, 0.])
+    R = np.array([0.1, 0.1])
     P = np.array([0.5*2*100*10])
 
     for name_index in range(step_length):
@@ -137,10 +137,12 @@ def run_mpc():
         # # only static obstacle
         x = np.ones((1,horizon)) * 0
         y = np.ones((1,horizon)) * -22
-
+        safe_dist = 5.
         vehicles_xy_array_static = np.stack((x,y),axis = 2)
-        # ineq_cons_2 = {'type': 'ineq',
-        #     'fun' : lambda u: mpc_cpp.mpc_constraints(u, ego_list, vehicles_xy_array_static, safe_dist)}
+        ineq_cons_2 = {'type': 'ineq',
+            'fun' : lambda u: mpc_cpp.mpc_constraints(u, ego_list, vehicles_xy_array_static, safe_dist)}
+        ineq_cons_alpha = {'type': 'ineq',
+            'fun' : lambda u: mpc_cpp.mpc_alpha_constraints(u, ego_list)}
         # #ineq_cons_2 = ()
 
         #current_ref_point, future_ref_tuple_list = ref.future_ref_points(ego_list[3], ego_list[4], horizon)
@@ -164,7 +166,7 @@ def run_mpc():
                                     x0 = tem_action_array[i,:].flatten(),
                                     method = 'SLSQP',
                                     bounds = bounds,
-                                    #constraints = (),
+                                    constraints = [ineq_cons_2, ineq_cons_alpha],
                                     options={'disp': True,
                                             'maxiter': 1000,
                                             'ftol' : 1e-2} 
