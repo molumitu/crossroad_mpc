@@ -1,14 +1,10 @@
 from scipy.optimize.zeros import VALUEERR
 from Reference import ReferencePath
-import matplotlib.pyplot as plt
 import numpy as np
 
 from scipy.optimize import minimize
 from Env_new import Crossroad
 from Env_utils import L, STEP_TIME,W, deal_with_phi
-#from MPControl import ModelPredictiveControl   # 太慢了
-from mpc_to_matlab import mpc_cost_function, mpc_constraints  # 只是把python类变成了函数，一样慢
-
 import mpc_cpp
 
 
@@ -54,7 +50,7 @@ def veh_predict(veh, horizon):
 def set_ego_init_state(ref):
     random_index = 120
 
-    x, y, phi = ref.indexs2points(random_index)
+    x, y, phi = ref.indexs2points(random_index, path_index=0)
     steer = 0.
     a_x = 0.
     v = 6. 
@@ -79,11 +75,12 @@ def set_ego_init_state(ref):
                             ))    # 这里指出了自车的名字叫ego, 这里也可以加多车
 
 def run_mpc():
-    step_length = 120
+    step_length = 150
+    
     horizon = 20
 
     task = 'left'
-    ref = ReferencePath(task, ref_index=0)
+    ref = ReferencePath(task)
 
     ref_best_index = 0
     init_ego_state = set_ego_init_state(ref)
@@ -98,7 +95,6 @@ def run_mpc():
 
     obs = env.obs    # 自车的状态list， 周车信息的recarray 包含x,y,v,phi
 
-    #mpc = ModelPredictiveControl(obs, horizon, ref, task = 'left')
     bounds = [(-0.26, 0.26), (-6.1, 2.8)] * horizon
     u_init = np.zeros((horizon, 2))
 
@@ -108,50 +104,51 @@ def run_mpc():
     result_array = np.zeros((step_length,10+horizon*5))
 
     Q = np.array([10, 10, 0., 0., 0])
-    R = np.array([0.1, 0.1])
-    P = np.array([0.5*2*100*10])
+    R = np.array([0.5, 0.1])
+    # P = np.array([0.5*2*100*10])
+    P = np.array([0])
 
     for name_index in range(step_length):
 
         ego_list = obs[0] # a list [v_x, v_y, r, x, y, phi, steer_current, a_x_current]
 
 
-        # n_ego_vehicles_list = env.traffic.n_ego_vehicles_list['ego']
-        # if n_ego_vehicles_list is None:
-        #     ineq_cons = ()
-        # else:
-        #     # 0：left 1:straight 2:right
-        #     # vehicles_array : N*horizon*4   N=8
-        #     n = len(n_ego_vehicles_list)      # 给python function 用的
-        #     vehicles_array = np.zeros((n,horizon,4))
-        #     for i, veh in enumerate(n_ego_vehicles_list):
-        #         task = route_to_task(veh)
-        #         vehicles_array[i] = veh_predict(veh, horizon)
-        #     vehicles_xy_array = vehicles_array[:,:,:2].copy()
-        #     safe_dist = 5.
-        #     # ineq_cons = {'type': 'ineq',
-        #     #     'fun' : lambda u: mpc_constraints(u, ego_list, vehicles_xy_array, n, horizon, STEP_TIME, safe_dist)} # python_function
-        #     ineq_cons = {'type': 'ineq',
-        #         'fun' : lambda u: mpc_cpp.mpc_constraints(u, ego_list, vehicles_xy_array, safe_dist)}
+        n_ego_vehicles_list = env.traffic.n_ego_vehicles_list['ego']
+        if n_ego_vehicles_list is None:
+            ineq_cons = ()
+        else:
+            # 0：left 1:straight 2:right
+            # vehicles_array : N*horizon*4   N=8
+            n = len(n_ego_vehicles_list)      # 给python function 用的
+            vehicles_array = np.zeros((n,horizon,4))
+            for i, veh in enumerate(n_ego_vehicles_list):
+                task = route_to_task(veh)
+                vehicles_array[i] = veh_predict(veh, horizon)
+            vehicles_xy_array = vehicles_array[:,:,:2].copy()
+            safe_dist = 5.
+            ineq_cons = {'type': 'ineq',
+                'fun' : lambda u: mpc_cpp.mpc_constraints(u, ego_list, vehicles_xy_array, safe_dist)}
 
-        # # only static obstacle
-        x = np.ones((1,horizon)) * 0
-        y = np.ones((1,horizon)) * -22
-        safe_dist = 5.
-        vehicles_xy_array_static = np.stack((x,y),axis = 2)
-        ineq_cons_2 = {'type': 'ineq',
-            'fun' : lambda u: mpc_cpp.mpc_constraints(u, ego_list, vehicles_xy_array_static, safe_dist)}
+        # # # only static obstacle
+        # x = np.ones((1,horizon)) * -22
+        # y = np.ones((1,horizon)) * -1.5
+        # safe_dist = 5.
+        # vehicles_xy_array_static = np.stack((x,y),axis = 2)
+        # ineq_cons_2 = {'type': 'ineq',
+        #     'fun' : lambda u: mpc_cpp.mpc_constraints(u, ego_list, vehicles_xy_array_static, safe_dist)}
         ineq_cons_alpha = {'type': 'ineq',
+
+
             'fun' : lambda u: mpc_cpp.mpc_alpha_constraints(u, ego_list)}
-        # #ineq_cons_2 = ()
+
 
         #current_ref_point, future_ref_tuple_list = ref.future_ref_points(ego_list[3], ego_list[4], horizon)
         multi_future_ref_tuple_list = ref.multi_future_ref_points(ego_list[3], ego_list[4], horizon)
 
         def mpc_wrapper(u):
-            for arr in (u, ego_list, vehicles_xy_array_static, future_ref_array, Q, R, P):
+            for arr in (u, ego_list, vehicles_xy_array, future_ref_array, Q, R, P):
                 assert arr.flags.c_contiguous
-            return mpc_cpp.mpc_cost_function(u, ego_list, vehicles_xy_array_static, future_ref_array, Q, R, P)
+            return mpc_cpp.mpc_cost_function(u, ego_list, vehicles_xy_array, future_ref_array, Q, R, P)
 
         result_list = []
         result_index_list = []
@@ -159,6 +156,7 @@ def run_mpc():
         for i in range(routes_num):
             future_ref_array = np.array(multi_future_ref_tuple_list[i])
             try:
+                start = time.time()
                 results = minimize(
                                     # lambda u: mpc_cost_function(u, ego_list, future_ref_list, horizon, STEP_TIME, Q, R), # python_function
                                     # lambda u: mpc_cpp.mpc_cost_function(u, ego_list, vehicles_xy_array_static, future_ref_array, Q, R, P),
@@ -166,21 +164,24 @@ def run_mpc():
                                     x0 = tem_action_array[i,:].flatten(),
                                     method = 'SLSQP',
                                     bounds = bounds,
-                                    constraints = [ineq_cons_2, ineq_cons_alpha],
-                                    options={'disp': True,
+                                    constraints = [ineq_cons, ineq_cons_alpha],
+                                    # constraints = (),
+                                    options={'disp': False,
                                             'maxiter': 1000,
                                             'ftol' : 1e-2} 
                                     )
                 if results.success:
+                    end = time.time()
+                    print("time:", end - start)
                     result_list.append(results)
                     result_index_list.append(i)
                     tem_action_array[i,:] = np.concatenate((results.x[2:],results.x[-2:]),axis =0)
-                    print(f'results.fun[{i}]',results.fun)
+                    #print(f'results.fun[{i}]',results.fun)
                 else:
-                    print(f'[{i}] fail')
+                     print(f'[{i}] fail')
             except ValueError:    #感觉是求解器内部的bug，探索到了控制量边界就会ValueError
                 valueError_list.append(i)
-                print('ValueError')
+                #print('ValueError')
                 # tem_action[:,0] = np.clip(tem_action[:,0], -0.2, 0.2)
                 # tem_action[:,1] = np.clip(tem_action[:,1], -7, 3)                   
                 # mpc_action = tem_action_array[i,:]
@@ -190,9 +191,9 @@ def run_mpc():
             # import sys
             # sys.exit()
             mpc_action = [0.] * horizon * 2
-            if obs[0][0] > 5:
+            if obs[0][0] > 2:
                 mpc_action[0] = 0.
-                mpc_action[1] = -2.
+                mpc_action[1] = -5.
             future_ref_array = np.array(multi_future_ref_tuple_list[0])
         elif valueError_list:
             mpc_action = tem_action_array[valueError_list[0],:]
@@ -200,7 +201,7 @@ def run_mpc():
         else:
             min_index = np.argmin([result.fun for result in result_list])
             mpc_action = result_list[min_index].x
-            print("choosed ref index :",result_list[min_index])
+            #print("choosed ref index :",result_list[min_index])
             ref_best_index = result_index_list[min_index]           
             future_ref_array = np.array(multi_future_ref_tuple_list[ref_best_index])
             
