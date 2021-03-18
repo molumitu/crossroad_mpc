@@ -7,6 +7,7 @@ from Env_utils import shift_coordination, rotate_coordination, rotate_and_shift_
     L, W, CROSSROAD_SIZE, LANE_WIDTH, LANE_NUMBER, judge_feasible,  STEP_TIME
 from traffic import Traffic
 from mpc_cpp import state_trans_LPF
+from state_trans_LPF_py import state_trans_LPF_py
 warnings.filterwarnings("ignore")
 
 
@@ -19,9 +20,6 @@ class Crossroad():
         self.traffic.init_traffic(self.init_state)
         self.traffic.sim_step()   #### 存疑，是否有必要step一步
         self.v_light = self.traffic.v_light
-
-        self.dynamics = VehicleDynamics()
-        #self.ref_path = ref
 
         ego_dynamics = self._get_ego_dynamics([self.init_state['ego']['v_x'],
                                                self.init_state['ego']['v_y'],
@@ -62,25 +60,6 @@ class Crossroad():
                    l=L,
                    w=W,
                    )
-        # miu_f, miu_r = out['miu_f'], out['miu_r']
-        # F_zf, F_zr = self.dynamics.vehicle_params['F_zf'], self.dynamics.vehicle_params['F_zr']
-        # C_f, C_r = self.dynamics.vehicle_params['C_f'], self.dynamics.vehicle_params['C_r']
-        # alpha_f_bound, alpha_r_bound = 3 * miu_f * F_zf / C_f, 3 * miu_r * F_zr / C_r
-        # r_bound = miu_r * self.dynamics.vehicle_params['g'] / (abs(out['v_x'])+1e-8)
-
-        # l, w, x, y, phi = out['l'], out['w'], out['x'], out['y'], out['phi']
-
-        # def cal_corner_point_of_ego_car():
-        #     x0, y0, a0 = rotate_and_shift_coordination(l / 2, w / 2, 0, -x, -y, -phi)
-        #     x1, y1, a1 = rotate_and_shift_coordination(l / 2, -w / 2, 0, -x, -y, -phi)
-        #     x2, y2, a2 = rotate_and_shift_coordination(-l / 2, w / 2, 0, -x, -y, -phi)
-        #     x3, y3, a3 = rotate_and_shift_coordination(-l / 2, -w / 2, 0, -x, -y, -phi)
-        #     return (x0, y0), (x1, y1), (x2, y2), (x3, y3)
-        # Corner_point = cal_corner_point_of_ego_car()
-        # out.update(dict(alpha_f_bound=alpha_f_bound,
-        #                 alpha_r_bound=alpha_r_bound,
-        #                 r_bound=r_bound,
-        #                 Corner_point=Corner_point))
         self.ego_dynamics = out  # 完成自车动力学参数的更新
         return out
 
@@ -141,7 +120,7 @@ class Crossroad():
         steer, a_x = trans_action
         state = np.array([current_v_x, current_v_y, current_r, current_x, current_y, current_phi, current_steer, current_a_x])
         action = np.array([steer, a_x])
-        next_ego_state, next_ego_param = state_trans_LPF(state, action)
+        next_ego_state, next_ego_param = state_trans_LPF_py(state, action, STEP_TIME)
         return next_ego_state
 
 
