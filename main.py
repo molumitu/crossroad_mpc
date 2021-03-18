@@ -148,7 +148,8 @@ def run_mpc():
         def mpc_wrapper(u):
             for arr in (u, ego_list, vehicles_xy_array, future_ref_array, Q, R, P):
                 assert arr.flags.c_contiguous
-            return mpc_cpp.mpc_cost_function(u, ego_list, vehicles_xy_array, future_ref_array, Q, R, P)
+            f, g = mpc_cpp.mpc_cost_function(u, ego_list, vehicles_xy_array, future_ref_array, Q, R, P)
+            return f, g
 
         result_list = []
         result_index_list = []
@@ -161,6 +162,7 @@ def run_mpc():
                                     # lambda u: mpc_cost_function(u, ego_list, future_ref_list, horizon, STEP_TIME, Q, R), # python_function
                                     # lambda u: mpc_cpp.mpc_cost_function(u, ego_list, vehicles_xy_array_static, future_ref_array, Q, R, P),
                                     lambda u: mpc_wrapper(u),
+                                    jac = True,
                                     x0 = tem_action_array[i,:].flatten(),
                                     method = 'SLSQP',
                                     bounds = bounds,
@@ -168,7 +170,7 @@ def run_mpc():
                                     # constraints = (),
                                     options={'disp': False,
                                             'maxiter': 1000,
-                                            'ftol' : 1e-2} 
+                                            'ftol' : 1e-4} 
                                     )
                 if results.success:
                     end = time.time()
