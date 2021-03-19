@@ -11,7 +11,7 @@ from mpc_to_matlab import mpc_cost_function  # 只是把python类变成了函数
 
 
 from solver import create_solver
-
+from solver_with_constraints import create_solver_with_cons
 
 
 def route_to_task(veh):
@@ -96,7 +96,7 @@ def run_mpc():
     result_array = np.zeros((step_length,10+horizon*5))
 
     start = time.perf_counter_ns()
-    solver = create_solver(horizon, STEP_TIME)
+    solver = create_solver_with_cons(horizon, STEP_TIME, n_vehicles=n)
     print('solver startup', time.perf_counter_ns() - start)
     umin = np.array([-0.26, -6.1])
     umax = np.array([ 0.26, 2.8])
