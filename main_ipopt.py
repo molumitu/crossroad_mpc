@@ -95,30 +95,56 @@ def run_mpc():
     tem_action_array = np.zeros((routes_num, horizon * 2))
     result_array = np.zeros((step_length,10+horizon*5))
 
-    start = time.perf_counter_ns()
-    solver = create_solver_with_cons(horizon, STEP_TIME, n_vehicles=n)
-    print('solver startup', time.perf_counter_ns() - start)
-    umin = np.array([-0.26, -6.1])
-    umax = np.array([ 0.26, 2.8])
-    lbx = np.hstack([np.kron(np.ones(horizon), umin)])
-    ubx = np.hstack([np.kron(np.ones(horizon), umax)])
+
+
+
+    # start = time.perf_counter_ns()
+    # solver = create_solver_with_cons(horizon, STEP_TIME)
+    # print('solver startup', time.perf_counter_ns() - start)
+
+
+
+
+
     time_list = []
 
     for name_index in range(step_length):
 
         ego_list = obs[0] # a list [v_x, v_y, r, x, y, phi, steer_current, a_x_current]
 
+        n_ego_vehicles_list = env.traffic.n_ego_vehicles_list['ego']
+        # vehicles_array : N*horizon*4   Nmax=8
+        n = len(n_ego_vehicles_list)
+
+        start = time.perf_counter_ns()
+        solver = create_solver_with_cons(horizon, STEP_TIME, n_vehicles= n)
+        print('solver startup', time.perf_counter_ns() - start)  
+
+        vehicles_array = np.zeros((n,horizon,4))
+        for i, veh in enumerate(n_ego_vehicles_list):
+            task = route_to_task(veh)
+            vehicles_array[i] = veh_predict(veh, horizon)
+        vehicles_xy_array = vehicles_array[:,:,:2].copy()
+
         multi_future_ref_tuple_list = ref.multi_future_ref_points(ego_list[3], ego_list[4], horizon)
         future_ref_array = np.array(multi_future_ref_tuple_list[0])
         future_x = list(future_ref_array[:,0])
         future_y = list(future_ref_array[:,1])
         future_phi = list(future_ref_array[:,2])
+        vehs_x = list(vehicles_xy_array[:,:,0].flatten().squeeze())
+        vehs_y = list(vehicles_xy_array[:,:,1].flatten().squeeze())
 
 
-        params = list(ego_list) + future_x + future_y + future_phi
+        params = list(ego_list) + future_x + future_y + future_phi + vehs_x + vehs_y
+        umin = [-0.26, -6.1]
+        umax = [ 0.26, 2.8]
+        lbx = umin * horizon
+        ubx = umax * horizon
+        lbg = np.zeros((1+4+n)*horizon)
+        ubg = np.ones((1+4+n)*horizon) * float('inf')
 
         start = time.perf_counter_ns()
-        sol=solver(x0=tem_action_array,lbx=lbx,ubx=ubx, p=params)
+        sol=solver(x0=tem_action_array,lbx=lbx,ubx=ubx, lbg=lbg, ubg=ubg, p=params)
         end = time.perf_counter_ns()
         time_list.append((end - start)/1e6)
         mpc_action = sol['x']

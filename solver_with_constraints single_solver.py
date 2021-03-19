@@ -1,21 +1,12 @@
 import numpy as np
 import casadi as ca
 
-solver_cache = dict()
 
-def create_solver_with_cons(Horizon, STEP_TIME, n_vehicles):
-    key = Horizon, STEP_TIME, n_vehicles
-    if key in solver_cache:
-        return solver_cache[key]
-    solver = _create_solver_with_cons(*key)
-    solver_cache[key] = solver
-    return solver
-
-def _create_solver_with_cons(Horizon, STEP_TIME, n_vehicles):
+def create_solver_with_cons_single_solver(Horizon, STEP_TIME):
     n_states = 8
     n_controls = 2
     safety_dist = 4.5
-    n_vehicles = n_vehicles
+    n_vehicles = 8
     C_f = -96995.9
     C_r = -85943.6
     a = 1.4
@@ -105,7 +96,8 @@ def _create_solver_with_cons(Horizon, STEP_TIME, n_vehicles):
         G[i, 3] = alpha_r * C_r + max_F_yr
         G[i, 4] = max_F_yr - alpha_r * C_r
         for k in range(n_vehicles):
-            G[i, k+5] = ca.sqrt((Vehs_x[k] - x_c)**2 +(Vehs_y[k] - y_c)**2) - safety_dist
+            G[i, k+5] = ca.sqrt((Vehs_x[k] - x_c)**2 +
+                                (Vehs_y[k] - y_c)**2) - safety_dist
 
         x_ref = Ref_x[i]
         y_ref = Ref_y[i]
@@ -121,6 +113,3 @@ def _create_solver_with_cons(Horizon, STEP_TIME, n_vehicles):
                 'ipopt.acceptable_tol': 1e-6, 'ipopt.acceptable_obj_change_tol': 1e-6}
     solver = ca.nlpsol('solver', 'ipopt', nlp_prob, opts_setting)
     return solver
-
-for n_vehicles in range(6):
-    create_solver_with_cons(20, 0.1, n_vehicles=n_vehicles)

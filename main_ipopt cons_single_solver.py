@@ -1,13 +1,18 @@
+from solver import create_solver
 from scipy.optimize.zeros import VALUEERR
 from Reference import ReferencePath
+import matplotlib.pyplot as plt
 import numpy as np
 import time
 from scipy.optimize import minimize
 from Env_new import Crossroad
 from Env_utils import L, STEP_TIME,W, deal_with_phi
-import mpc_cpp
+from mpc_to_matlab import mpc_cost_function  # 只是把python类变成了函数，一样慢
 
 
+from solver import create_solver
+from solver_with_constraints import create_solver_with_cons
+from solver_with_constraints single_solver import
 
 def route_to_task(veh):
     if veh[4] == ('1o', '4i') or veh[4] == ('2o', '1i') :
@@ -50,7 +55,7 @@ def veh_predict(veh, horizon):
 def set_ego_init_state(ref):
     random_index = 120
 
-    x, y, phi = ref.indexs2points(random_index, path_index=0)
+    x, y, phi = ref.indexs2points(random_index, path_index = 0)
     steer = 0.
     a_x = 0.
     v = 6. 
@@ -77,94 +82,97 @@ def set_ego_init_state(ref):
 def run_mpc():
     tol_start = time.perf_counter_ns()
     step_length = 150
-    
     horizon = 20
 
     task = 'left'
     ref = ReferencePath(task)
-
-    ref_best_index = 0
     init_ego_state = set_ego_init_state(ref)
 
-
-    start = time.time()
-
     env = Crossroad(init_ego_state = init_ego_state)
-
-    end = time.time()
-    print("Env startup time: ", end - start)
-
     obs = env.obs    # 自车的状态list， 周车信息的recarray 包含x,y,v,phi
-
-    bounds = [(-0.26, 0.26), (-6.1, 2.8)] * horizon
-    u_init = np.zeros((horizon, 2))
-
 
     routes_num = 1
     tem_action_array = np.zeros((routes_num, horizon * 2))
     result_array = np.zeros((step_length,10+horizon*5))
 
-    Q = np.array([10, 10, 0., 0., 0])
-    R = np.array([0.5, 0.1])
-    # P = np.array([0.5*2*100*10])
-    P = np.array([0])
+
+
+
+    # start = time.perf_counter_ns()
+    # solver = create_solver_with_cons(horizon, STEP_TIME)
+    # print('solver startup', time.perf_counter_ns() - start)
+
+
+
+
+
     time_list = []
 
     for name_index in range(step_length):
 
         ego_list = obs[0] # a list [v_x, v_y, r, x, y, phi, steer_current, a_x_current]
 
-
         n_ego_vehicles_list = env.traffic.n_ego_vehicles_list['ego']
-        n = len(n_ego_vehicles_list)      
+        # vehicles_array : N*horizon*4   Nmax=8
+        n = len(n_ego_vehicles_list)
+
+        start = time.perf_counter_ns()
+        solver = create_solver_with_cons(horizon, STEP_TIME, n_vehicles= n)
+        print('solver startup', time.perf_counter_ns() - start)  
+
         vehicles_array = np.zeros((n,horizon,4))
         for i, veh in enumerate(n_ego_vehicles_list):
             task = route_to_task(veh)
             vehicles_array[i] = veh_predict(veh, horizon)
         vehicles_xy_array = vehicles_array[:,:,:2].copy()
 
-
         multi_future_ref_tuple_list = ref.multi_future_ref_points(ego_list[3], ego_list[4], horizon)
         future_ref_array = np.array(multi_future_ref_tuple_list[0])
+        future_x = list(future_ref_array[:,0])
+        future_y = list(future_ref_array[:,1])
+        future_phi = list(future_ref_array[:,2])
+        vehs_x = list(vehicles_xy_array[:,:,0].squeeze())
+        vehs_y = list(vehicles_xy_array[:,:,1].squeeze())
+
+
+        params = list(ego_list) + future_x + future_y + future_phi + vehs_x + vehs_y
+        umin = [-0.26, -6.1]
+        umax = [ 0.26, 2.8]
+        lbx = umin * horizon
+        ubx = umax * horizon
+        lbg = np.zeros((1+4+n)*horizon)
+        ubg = np.ones((1+4+n)*horizon) * float('inf')
 
         start = time.perf_counter_ns()
-        results = minimize(
-                            # lambda u: mpc_cost_function(u, ego_list, future_ref_list, horizon, STEP_TIME, Q, R), # python_function
-                            lambda u: mpc_cpp.mpc_cost_function_jac(u, ego_list, vehicles_xy_array, future_ref_array, Q, R, P),
-                            x0 = tem_action_array[0,:].flatten(),
-                            jac = True,
-                            method = 'SLSQP',
-                            bounds = bounds,
-                            constraints = ineq_cons,
-                            options={'disp': False,
-                                    'maxiter': 1000,
-                                    'ftol' : 1e-4} 
-                            )
+        sol=solver(x0=tem_action_array,lbx=lbx,ubx=ubx, lbg=lbg, ubg=ubg, p=params)
         end = time.perf_counter_ns()
-        time_list.append((end - start) / 1e6)
+        time_list.append((end - start)/1e6)
+        mpc_action = sol['x']
+    
+        mpc_action_array = np.array(mpc_action).squeeze()
 
-        tem_action_array[0,:] = np.concatenate((results.x[2:],results.x[-2:]),axis =0)
-        mpc_action = results.x
 
-        obs, reward, done, info = env.step(mpc_action[:2])
+        obs, reward, done, info = env.step(mpc_action_array[:2])
+        tem_action_array = np.concatenate((mpc_action_array[2:],mpc_action_array[-2:]),axis =0)
+        # tem_action_array = [*mpc_action_array[2:], *mpc_action_array[-2:]]
 
-        result_array[name_index,0] = mpc_action[0]     # steer
-        result_array[name_index,1] = mpc_action[1]     # a_x 
+        result_array[name_index,0] = mpc_action_array[0]     # steer
+        result_array[name_index,1] = mpc_action_array[1]     # a_x 
         result_array[name_index,2:10] = obs[0]          # v_x, v_y, r, x, y, phi, steer, a_x
 
         result_array[name_index,10:10+horizon*1] = future_ref_array[:,0]               # ref_x
         result_array[name_index,10+horizon*1:10+horizon*2] = future_ref_array[:,1]     # ref_y
         result_array[name_index,10+horizon*2:10+horizon*3] = future_ref_array[:,2]     # ref_phi
 
-        result_array[name_index,10+horizon*3:10+horizon*4] = mpc_action[slice(0,horizon*2,2)]  # steer_tem
-        result_array[name_index,10+horizon*4:10+horizon*5] = mpc_action[slice(1,horizon*2,2)]  # a_x_tem
+        result_array[name_index,10+horizon*3:10+horizon*4] = mpc_action_array[slice(0,horizon*2,2)]  # steer_tem
+        result_array[name_index,10+horizon*4:10+horizon*5] = mpc_action_array[slice(1,horizon*2,2)]  # a_x_tem
 
 
     record_result = result_array
     import datetime
     current_time = datetime.datetime.now()
-    np.savetxt(f'compare_solver_result/slsqp_codegen_result{current_time:%Y_%m_%d_%H_%M_%S}.csv', record_result, delimiter = ',')
-    np.savetxt(f'compare_solver_result/slsqp_codegen_time{current_time:%Y_%m_%d_%H_%M_%S}.csv', time_list)
+    np.savetxt(f'compare_solver_result/ipopt_result{current_time:%Y_%m_%d_%H_%M_%S}.csv', record_result, delimiter = ',')
+    np.savetxt(f'compare_solver_result/ipopt_time{current_time:%Y_%m_%d_%H_%M_%S}.csv', time_list)
     tol_end = time.perf_counter_ns()
     print('tol_time:', (tol_end - tol_start)/1e6)
 
