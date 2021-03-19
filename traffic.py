@@ -94,7 +94,7 @@ class Traffic(object):
         end = time.time()
         print("Sumo startup time: ", end - start)
 
-        while traci.simulation.getTime() < 11.2:
+        while traci.simulation.getTime() < 29.0:
             if traci.simulation.getTime() < 80:
                 traci.trafficlight.setPhase('0', 0)
             else:
@@ -218,7 +218,7 @@ class Traffic(object):
                     if  sqrt((x_ego-x) ** 2 + (y_ego-y) ** 2) < 80 and \
                         (((route[1] == '4i') and (x > -CROSSROAD_SIZE/2 - 10)) or ((route[1] == '1i') \
                             and (y > -CROSSROAD_SIZE/2 - 10) and (x > -CROSSROAD_SIZE/2 -10)))\
-                            and x < (x_ego + 5)  and y > (y_ego):
+                            and x < (x_ego + 5)  and y > (y_ego - 5):
                         traci.vehicle.setColor(str(veh),(255,0,0))
                         self.n_ego_vehicles[egoID].append(dict(veh_ID=veh, x=x, y=y, v=v, phi=a, l=length, w=width, route=route))
                         self.n_ego_vehicles_list[egoID].append([x, y, v, a, route])

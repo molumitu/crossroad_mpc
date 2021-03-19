@@ -48,7 +48,7 @@ def veh_predict(veh, horizon):
     return veh_array
 
 def set_ego_init_state(ref):
-    random_index = 120
+    random_index = 2000
 
     x, y, phi = ref.indexs2points(random_index, path_index=0)
     steer = 0.
@@ -105,8 +105,8 @@ def run_mpc():
 
     Q = np.array([10, 10, 0., 0., 0])
     R = np.array([0.5, 0.1])
-    # P = np.array([0.5*2*100*10])
-    P = np.array([0])
+    P = np.array([0.5*2*100*10])
+    #P = np.array([0])
 
     for name_index in range(step_length):
 
@@ -125,9 +125,16 @@ def run_mpc():
                 task = route_to_task(veh)
                 vehicles_array[i] = veh_predict(veh, horizon)
             vehicles_xy_array = vehicles_array[:,:,:2].copy()
-            safe_dist = 5.
+            safe_dist = 4
             ineq_cons = {'type': 'ineq',
-                'fun' : lambda u: mpc_cpp.mpc_constraints(u, ego_list, vehicles_xy_array, safe_dist)}
+                'fun' : lambda u: mpc_cpp.mpc_constraints(u, ego_list, vehicles_xy_array, safe_dist),
+                # 'jac': lambda u: mpc_constraints_wrapper(u)
+                }
+
+        def mpc_constraints_wrapper(u):
+            grad = mpc_cpp.mpc_constraints_jac(u, ego_list, vehicles_xy_array, safe_dist)[1]
+            grad = grad.reshape(-1, horizon * 2)
+            return grad
 
         # # # only static obstacle
         # x = np.ones((1,horizon)) * -22
@@ -137,8 +144,6 @@ def run_mpc():
         # ineq_cons_2 = {'type': 'ineq',
         #     'fun' : lambda u: mpc_cpp.mpc_constraints(u, ego_list, vehicles_xy_array_static, safe_dist)}
         ineq_cons_alpha = {'type': 'ineq',
-
-
             'fun' : lambda u: mpc_cpp.mpc_alpha_constraints(u, ego_list)}
 
 
@@ -148,8 +153,8 @@ def run_mpc():
         def mpc_wrapper(u):
             for arr in (u, ego_list, vehicles_xy_array, future_ref_array, Q, R, P):
                 assert arr.flags.c_contiguous
-            f, g = mpc_cpp.mpc_cost_function(u, ego_list, vehicles_xy_array, future_ref_array, Q, R, P)
-            return f, g
+            return mpc_cpp.mpc_cost_function_jac(u, ego_list, vehicles_xy_array, future_ref_array, Q, R, P)
+             
 
         result_list = []
         result_index_list = []
@@ -195,7 +200,7 @@ def run_mpc():
             mpc_action = [0.] * horizon * 2
             if obs[0][0] > 2:
                 mpc_action[0] = 0.
-                mpc_action[1] = -5.
+                mpc_action[1] = -2.
             future_ref_array = np.array(multi_future_ref_tuple_list[0])
         elif valueError_list:
             mpc_action = tem_action_array[valueError_list[0],:]
@@ -238,7 +243,7 @@ def run_mpc():
     record_result = result_array
     import datetime
     current_time = datetime.datetime.now()
-    np.savetxt(f'result/record_result{current_time:%Y_%m_%d_%H_%M_%S}.csv', record_result, delimiter = ',')
+    #np.savetxt(f'result/record_result{current_time:%Y_%m_%d_%H_%M_%S}.csv', record_result, delimiter = ',')
 
 
 
