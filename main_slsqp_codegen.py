@@ -75,7 +75,7 @@ def set_ego_init_state(ref):
                             ))    # 这里指出了自车的名字叫ego, 这里也可以加多车
 
 def run_mpc():
-    tol_start = time.perf_counter_ns()
+
     step_length = 150
     
     horizon = 20
@@ -94,6 +94,7 @@ def run_mpc():
     end = time.time()
     print("Env startup time: ", end - start)
 
+    tol_start = time.perf_counter_ns()
     obs = env.obs    # 自车的状态list， 周车信息的recarray 包含x,y,v,phi
 
     bounds = [(-0.26, 0.26), (-6.1, 2.8)] * horizon
@@ -114,14 +115,55 @@ def run_mpc():
 
         ego_list = obs[0] # a list [v_x, v_y, r, x, y, phi, steer_current, a_x_current]
 
-
         n_ego_vehicles_list = env.traffic.n_ego_vehicles_list['ego']
-        n = len(n_ego_vehicles_list)      
-        vehicles_array = np.zeros((n,horizon,4))
-        for i, veh in enumerate(n_ego_vehicles_list):
-            task = route_to_task(veh)
-            vehicles_array[i] = veh_predict(veh, horizon)
-        vehicles_xy_array = vehicles_array[:,:,:2].copy()
+        if n_ego_vehicles_list is None:
+            ineq_cons = ()
+        else:
+            # 0：left 1:straight 2:right
+            # vehicles_array : N*horizon*4   N=8
+            n = len(n_ego_vehicles_list)      # 给python function 用的
+            vehicles_array = np.zeros((n,horizon,4))
+            for i, veh in enumerate(n_ego_vehicles_list):
+                task = route_to_task(veh)
+                vehicles_array[i] = veh_predict(veh, horizon)
+            vehicles_xy_array = vehicles_array[:,:,:2].copy()
+            safe_dist = 4
+            ineq_cons = {'type': 'ineq',
+                'fun' : lambda u: mpc_cpp.mpc_constraints(u, ego_list, vehicles_xy_array, safe_dist),
+                #'jac': lambda u: mpc_constraints_wrapper(u)
+                }
+
+        def mpc_constraints_wrapper(u):
+            grad = mpc_cpp.mpc_constraints_jac(u, ego_list, vehicles_xy_array, safe_dist)[1]
+            grad = grad.reshape(-1, horizon * 2)
+            return grad
+
+        # # # # only static obstacle
+        # # x = np.ones((1,horizon)) * -22
+        # # y = np.ones((1,horizon)) * -1.5
+        # # safe_dist = 5.
+        # # vehicles_xy_array_static = np.stack((x,y),axis = 2)
+        # # ineq_cons_2 = {'type': 'ineq',
+        # #     'fun' : lambda u: mpc_cpp.mpc_constraints(u, ego_list, vehicles_xy_array_static, safe_dist)}
+        # ineq_cons_alpha = {'type': 'ineq',
+        #     'fun' : lambda u: mpc_cpp.mpc_alpha_constraints(u, ego_list)}
+
+
+        #current_ref_point, future_ref_tuple_list = ref.future_ref_points(ego_list[3], ego_list[4], horizon)
+        multi_future_ref_tuple_list = ref.multi_future_ref_points(ego_list[3], ego_list[4], horizon)
+
+        def mpc_wrapper(u):
+            for arr in (u, ego_list, vehicles_xy_array, future_ref_array, Q, R, P):
+                assert arr.flags.c_contiguous
+            return mpc_cpp.mpc_cost_function_jac(u, ego_list, vehicles_xy_array, future_ref_array, Q, R, P)
+
+        # n_ego_vehicles_list = env.traffic.n_ego_vehicles_list['ego']
+        # n = len(n_ego_vehicles_list)      
+        # vehicles_array = np.zeros((n,horizon,4))
+        # for i, veh in enumerate(n_ego_vehicles_list):
+        #     task = route_to_task(veh)
+        #     vehicles_array[i] = veh_predict(veh, horizon)
+        # vehicles_xy_array = vehicles_array[:,:,:2].copy()
 
 
         multi_future_ref_tuple_list = ref.multi_future_ref_points(ego_list[3], ego_list[4], horizon)
@@ -136,15 +178,21 @@ def run_mpc():
                             method = 'SLSQP',
                             bounds = bounds,
                             constraints = ineq_cons,
-                            options={'disp': False,
+                            options={'disp': True,
                                     'maxiter': 1000,
                                     'ftol' : 1e-4} 
                             )
+        if results.success:
+            mpc_action = results.x
+        else:
+            print('fail')
+            mpc_action = tem_action_array[0,:]
+            mpc_action[1] = -5.
         end = time.perf_counter_ns()
         time_list.append((end - start) / 1e6)
 
-        tem_action_array[0,:] = np.concatenate((results.x[2:],results.x[-2:]),axis =0)
-        mpc_action = results.x
+        tem_action_array[0,:] = np.concatenate((mpc_action[2:],mpc_action[-2:]),axis =0)
+
 
         obs, reward, done, info = env.step(mpc_action[:2])
 
@@ -159,13 +207,13 @@ def run_mpc():
         result_array[name_index,10+horizon*3:10+horizon*4] = mpc_action[slice(0,horizon*2,2)]  # steer_tem
         result_array[name_index,10+horizon*4:10+horizon*5] = mpc_action[slice(1,horizon*2,2)]  # a_x_tem
 
-
+    tol_end = time.perf_counter_ns()
     record_result = result_array
     import datetime
     current_time = datetime.datetime.now()
     np.savetxt(f'compare_solver_result/slsqp_codegen_result{current_time:%Y_%m_%d_%H_%M_%S}.csv', record_result, delimiter = ',')
     np.savetxt(f'compare_solver_result/slsqp_codegen_time{current_time:%Y_%m_%d_%H_%M_%S}.csv', time_list)
-    tol_end = time.perf_counter_ns()
+
     print('tol_time:', (tol_end - tol_start)/1e6)
 
 

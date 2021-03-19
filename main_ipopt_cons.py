@@ -12,7 +12,7 @@ from mpc_to_matlab import mpc_cost_function  # 只是把python类变成了函数
 
 from solver import create_solver
 from solver_with_constraints import create_solver_with_cons
-from solver_with_constraints single_solver import
+
 
 def route_to_task(veh):
     if veh[4] == ('1o', '4i') or veh[4] == ('2o', '1i') :
@@ -80,7 +80,6 @@ def set_ego_init_state(ref):
                             ))    # 这里指出了自车的名字叫ego, 这里也可以加多车
 
 def run_mpc():
-    tol_start = time.perf_counter_ns()
     step_length = 150
     horizon = 20
 
@@ -89,6 +88,10 @@ def run_mpc():
     init_ego_state = set_ego_init_state(ref)
 
     env = Crossroad(init_ego_state = init_ego_state)
+
+    tol_start = time.perf_counter_ns()
+
+
     obs = env.obs    # 自车的状态list， 周车信息的recarray 包含x,y,v,phi
 
     routes_num = 1
@@ -118,7 +121,7 @@ def run_mpc():
 
         start = time.perf_counter_ns()
         solver = create_solver_with_cons(horizon, STEP_TIME, n_vehicles= n)
-        print('solver startup', time.perf_counter_ns() - start)  
+        print('solver startup', (time.perf_counter_ns() - start)/1e9)  
 
         vehicles_array = np.zeros((n,horizon,4))
         for i, veh in enumerate(n_ego_vehicles_list):
@@ -131,8 +134,8 @@ def run_mpc():
         future_x = list(future_ref_array[:,0])
         future_y = list(future_ref_array[:,1])
         future_phi = list(future_ref_array[:,2])
-        vehs_x = list(vehicles_xy_array[:,:,0].squeeze())
-        vehs_y = list(vehicles_xy_array[:,:,1].squeeze())
+        vehs_x = list(vehicles_xy_array[:,:,0].flatten())
+        vehs_y = list(vehicles_xy_array[:,:,1].flatten())
 
 
         params = list(ego_list) + future_x + future_y + future_phi + vehs_x + vehs_y
@@ -147,6 +150,8 @@ def run_mpc():
         sol=solver(x0=tem_action_array,lbx=lbx,ubx=ubx, lbg=lbg, ubg=ubg, p=params)
         end = time.perf_counter_ns()
         time_list.append((end - start)/1e6)
+
+
         mpc_action = sol['x']
     
         mpc_action_array = np.array(mpc_action).squeeze()
@@ -167,13 +172,12 @@ def run_mpc():
         result_array[name_index,10+horizon*3:10+horizon*4] = mpc_action_array[slice(0,horizon*2,2)]  # steer_tem
         result_array[name_index,10+horizon*4:10+horizon*5] = mpc_action_array[slice(1,horizon*2,2)]  # a_x_tem
 
-
+    tol_end = time.perf_counter_ns()
     record_result = result_array
     import datetime
     current_time = datetime.datetime.now()
-    np.savetxt(f'compare_solver_result/ipopt_result{current_time:%Y_%m_%d_%H_%M_%S}.csv', record_result, delimiter = ',')
-    np.savetxt(f'compare_solver_result/ipopt_time{current_time:%Y_%m_%d_%H_%M_%S}.csv', time_list)
-    tol_end = time.perf_counter_ns()
+    #np.savetxt(f'compare_ipopt/ipopt_multi_solvers_result{current_time:%Y_%m_%d_%H_%M_%S}.csv', record_result, delimiter = ',')
+    #np.savetxt(f'compare_ipopt/ipopt_multi_solvers_time{current_time:%Y_%m_%d_%H_%M_%S}.csv', time_list)
     print('tol_time:', (tol_end - tol_start)/1e6)
 
 

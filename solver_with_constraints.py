@@ -117,8 +117,9 @@ def _create_solver_with_cons(Horizon, STEP_TIME, n_vehicles):
 
 
     nlp_prob = {'f': obj, 'x': ca.reshape(U, -1, 1), 'g': ca.reshape(G, -1, 1), 'p': P}
-    opts_setting = {'ipopt.max_iter': 1000, 'ipopt.print_level': 0, 'print_time': 0,
-                'ipopt.acceptable_tol': 1e-6, 'ipopt.acceptable_obj_change_tol': 1e-6}
+    opts_setting = {'ipopt.max_iter': 1000, 'ipopt.print_level': 0, 'print_time': 0,\
+                # 'ipopt.acceptable_tol': 1e-4, \
+                'ipopt.acceptable_obj_change_tol': 1e-4}
     solver = ca.nlpsol('solver', 'ipopt', nlp_prob, opts_setting)
     return solver
 
