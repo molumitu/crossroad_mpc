@@ -1,2 +1,17 @@
 __pycache__/
+.benchmarks/
+.pytest_cache/
+matlab_to_mpc/
 result/
+slprj/
+test/
+sumo_files/
+compare_solver_result/
+*.ipynb
+*.m
+*.txt
+*.log
+*.slxc
+*.json
+
+
