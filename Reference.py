@@ -12,13 +12,7 @@ class ReferencePath(object):
         self.path_list = []
         self.path_len_list = []
         self._construct_ref_path(self.task)
-        #self.ref_index = np.random.choice(len(self.path_list)) if ref_index is None else ref_index
-        # self.ref_index = ref_index
-        # self.path = self.path_list[self.ref_index]
 
-    # def set_path(self, path_index=None):
-    #     self.ref_index = path_index
-    #     self.path = self.path_list[self.ref_index]
 
     def _construct_ref_path(self, task):
         sl = 40  # straight line length, equal to extensions
@@ -61,6 +55,27 @@ class ReferencePath(object):
                 self.path_list.append(planned_trj)
                 self.path_len_list.append(len(total_x))
         
+
+            path_red_points_nums = int((sl- 15) * meter_pointnum_ratio) + 1
+            path_red_line_x = LANE_WIDTH/2 * np.ones(shape=(path_red_points_nums,))
+            path_red_line_y = np.linspace(-CROSSROAD_SIZE/2 - sl, -CROSSROAD_SIZE/2 - 15 , path_red_points_nums)
+
+            a_brake = -2
+            v0 = 6
+            t = np.linspace(0,3,30*60)[1:]
+            s_y = v0 * t + 1/2*a_brake*t**2 - 40
+            s_x = LANE_WIDTH/2 * np.ones(shape=(len(t),))
+
+            total_len = path_red_points_nums + len(t)
+
+
+            path_red_phi = 90 * np.ones(shape=(total_len,))
+            path_red_x = np.concatenate((path_red_line_x, s_x))
+            path_red_y = np.concatenate((path_red_line_y, s_y))
+            path_red = path_red_x, path_red_y, path_red_phi
+            self.path_list.append(path_red)
+            self.path_len_list.append(total_len)
+        
     def find_closest_point(self, xs, ys, path_index = 0):  # radio用来将轨迹点稀疏化，但是不需要
         xs_array = float(xs) * np.ones_like(self.path_list[path_index][0])
         ys_array = float(ys) * np.ones_like(self.path_list[path_index][1])
@@ -82,6 +97,7 @@ class ReferencePath(object):
         ## 给未来horizon个ref_points
         for _ in range(n):
             current_index = current_index + 60
+            #current_index = np.where(current_index >= len(self.path_list[path_index][0]) - 1, len(self.path_list[path_index][0]) - 1, current_index)  # 避免仿真末尾报错
             future_ref_list.append(self.indexs2points(current_index, path_index))
 
 
@@ -98,11 +114,18 @@ class ReferencePath(object):
         _, future_ref_list = self.future_ref_points(ego_xs, ego_ys, n, path_index = 0)
         _, future_ref_list_1 = self.future_ref_points(ego_xs, ego_ys, n, path_index = 1)
         _, future_ref_list_2 = self.future_ref_points(ego_xs, ego_ys, n, path_index = 2)
-        return [future_ref_list, future_ref_list_1, future_ref_list_2]
+        _, future_ref_list_3 = self.future_ref_points(ego_xs, ego_ys, n, path_index = 3)
+        return [future_ref_list, future_ref_list_1, future_ref_list_2, future_ref_list_3]
 
 
     def indexs2points(self, index, path_index):  #根据index 得到轨迹点的 x_ref, y_ref, phi_ref
         index = np.where(index >= 0, index, 0)
         index = np.where(index < len(self.path_list[path_index][0]), index, len(self.path_list[path_index][0])-1)  # 避免仿真末尾报错
         point = self.path_list[path_index][0][index], self.path_list[path_index][1][index], self.path_list[path_index][2][index]
-        return (point[0], point[1], point[2])
+        return point
+
+
+
+if __name__ == "__main__":
+    ref = ReferencePath('left')
+    print(ref.path_len_list)

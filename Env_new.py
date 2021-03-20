@@ -128,6 +128,8 @@ class Crossroad():
         self.traffic.set_own_car(dict(ego=ego_dynamics))
 
         self.traffic.sim_step()
+        self.v_light = self.traffic.v_light
+
         self.all_vehicles = self.traffic.n_ego_vehicles['ego']
         self.obs = self._get_obs()
 

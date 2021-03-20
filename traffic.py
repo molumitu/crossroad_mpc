@@ -94,7 +94,7 @@ class Traffic(object):
         end = time.time()
         print("Sumo startup time: ", end - start)
 
-        while traci.simulation.getTime() < 29.0:
+        while traci.simulation.getTime() < 81:
             if traci.simulation.getTime() < 80:
                 traci.trafficlight.setPhase('0', 0)
             else:
@@ -151,7 +151,7 @@ class Traffic(object):
         self.collision_flag = False
         self.n_ego_collision_flag = {}
         self.collision_ego_id = None
-        self.v_light = 0
+        self.v_light = 2
         self.n_ego_dict = init_n_ego_dict
         traci.trafficlight.setPhase('0', self.v_light)
         random_traffic = self.generate_random_traffic()
@@ -226,8 +226,15 @@ class Traffic(object):
     def _get_traffic_light(self):
         self.v_light = traci.trafficlight.getPhase('0')
 
+    def _traffic_light_manage(self, sim_time):
+        if sim_time%60 <30:
+            return 2
+        else:
+            return 0
+
     def sim_step(self):
         self.sim_time += STEP_TIME
+        self.v_light = self._traffic_light_manage(self.sim_time)
         traci.trafficlight.setPhase('0', self.v_light)
         traci.simulationStep()
         self._get_vehicles()

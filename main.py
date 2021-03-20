@@ -49,12 +49,12 @@ def veh_predict(veh, horizon):
     return veh_array
 
 def set_ego_init_state(ref):
-    random_index = 2000
+    random_index = 3000
 
     x, y, phi = ref.indexs2points(random_index, path_index=0)
     steer = 0.
     a_x = 0.
-    v = 6. 
+    v = 1 
     if ref.task == 'left':
         routeID = 'dl'
     elif ref.task == 'straight':
@@ -76,7 +76,7 @@ def set_ego_init_state(ref):
                             ))    # 这里指出了自车的名字叫ego, 这里也可以加多车
 
 def run_mpc():
-    step_length = 150
+    step_length = 500
     
     horizon = 20
 
@@ -123,7 +123,7 @@ def run_mpc():
                 task = route_to_task(veh)
                 vehicles_array[i] = veh_predict(veh, horizon)
             vehicles_xy_array = vehicles_array[:,:,:2].copy()
-            safe_dist = 6
+            safe_dist = 4
             ineq_cons = {'type': 'ineq',
                 'fun' : lambda u: mpc_cpp.mpc_constraints(u, ego_list, vehicles_xy_array, safe_dist),
                 'jac': lambda u: mpc_constraints_wrapper(u)
@@ -160,77 +160,107 @@ def run_mpc():
                 assert arr.flags.c_contiguous
             return mpc_cpp.mpc_cost_function_jac(u, ego_list, vehicles_xy_array, future_ref_array, Q, R, P)
              
+             
+        if not(env.v_light == 2):
+            print('现在是绿灯')
+            result_list = []
+            result_index_list = []
+            valueError_list = []
+            for i in range(routes_num-2):
+                future_ref_array = np.array(multi_future_ref_tuple_list[i])
+                try:
+                    start = time.time()
+                    results = minimize(
+                                        # lambda u: mpc_cost_function(u, ego_list, future_ref_list, horizon, STEP_TIME, Q, R), # python_function
+                                        # lambda u: mpc_cpp.mpc_cost_function(u, ego_list, vehicles_xy_array_static, future_ref_array, Q, R, P),
+                                        lambda u: mpc_wrapper(u),
+                                        jac = True,
+                                        x0 = tem_action_array[i,:].flatten(),
+                                        method = 'SLSQP',
+                                        bounds = bounds,
+                                        #constraints = [ineq_cons, ineq_cons_alpha],
+                                        constraints = ineq_cons_alpha,
+                                        #constraints = ineq_cons,
+                                        options={'disp': False,
+                                                'maxiter': 1000,
+                                                'ftol' : 1e-4} 
+                                        )
+                    if results.success:
+                        end = time.time()
+                        print("time:", end - start)
+                        result_list.append(results)
+                        result_index_list.append(i)
+                        tem_action_array[i,:] = np.concatenate((results.x[2:],results.x[-2:]),axis =0)
+                        #print(f'results.fun[{i}]',results.fun)
+                    else:
+                        print(f'[{i}] fail')
+                except ValueError:    #感觉是求解器内部的bug，探索到了控制量边界就会ValueError
+                    valueError_list.append(i)
+                    #print('ValueError')
+                    # tem_action[:,0] = np.clip(tem_action[:,0], -0.2, 0.2)
+                    # tem_action[:,1] = np.clip(tem_action[:,1], -7, 3)                   
+                    # mpc_action = tem_action_array[i,:]
 
-        result_list = []
-        result_index_list = []
-        valueError_list = []
-        for i in range(routes_num):
-            future_ref_array = np.array(multi_future_ref_tuple_list[i])
-            try:
-                start = time.time()
-                results = minimize(
-                                    # lambda u: mpc_cost_function(u, ego_list, future_ref_list, horizon, STEP_TIME, Q, R), # python_function
-                                    # lambda u: mpc_cpp.mpc_cost_function(u, ego_list, vehicles_xy_array_static, future_ref_array, Q, R, P),
-                                    lambda u: mpc_wrapper(u),
-                                    jac = True,
-                                    x0 = tem_action_array[i,:].flatten(),
-                                    method = 'SLSQP',
-                                    bounds = bounds,
-                                    constraints = [ineq_cons, ineq_cons_alpha],
-                                    # constraints = (),
-                                    options={'disp': False,
-                                            'maxiter': 1000,
-                                            'ftol' : 1e-4} 
-                                    )
-                if results.success:
-                    end = time.time()
-                    print("time:", end - start)
-                    result_list.append(results)
-                    result_index_list.append(i)
-                    tem_action_array[i,:] = np.concatenate((results.x[2:],results.x[-2:]),axis =0)
-                    #print(f'results.fun[{i}]',results.fun)
-                else:
-                     print(f'[{i}] fail')
-            except ValueError:    #感觉是求解器内部的bug，探索到了控制量边界就会ValueError
-                valueError_list.append(i)
-                #print('ValueError')
-                # tem_action[:,0] = np.clip(tem_action[:,0], -0.2, 0.2)
-                # tem_action[:,1] = np.clip(tem_action[:,1], -7, 3)                   
-                # mpc_action = tem_action_array[i,:]
-
-        if not result_list and not valueError_list:
-            print('fail')
-            # import sys
-            # sys.exit()
-            mpc_action = [0.] * horizon * 2
-            if obs[0][0] > 2:
-                mpc_action[0] = 0.
-                mpc_action[1] = -5.
-            future_ref_array = np.array(multi_future_ref_tuple_list[0])
-        elif valueError_list:
-            mpc_action = tem_action_array[valueError_list[0],:]
-            future_ref_array = np.array(multi_future_ref_tuple_list[valueError_list[0]])
-        else:
-            min_index = np.argmin([result.fun for result in result_list])
-            mpc_action = result_list[min_index].x
-            #print("choosed ref index :",result_list[min_index])
-            ref_best_index = result_index_list[min_index]           
-            future_ref_array = np.array(multi_future_ref_tuple_list[ref_best_index])
+            if not result_list and not valueError_list:
+                print('fail')
+                # import sys
+                # sys.exit()
+                mpc_action = [0.] * horizon * 2
+                if obs[0][0] > 1:
+                    mpc_action[0] = 0.
+                    mpc_action[1] = -2.
+                future_ref_array = np.array(multi_future_ref_tuple_list[0])
+            elif valueError_list:
+                mpc_action = tem_action_array[valueError_list[0],:]
+                future_ref_array = np.array(multi_future_ref_tuple_list[valueError_list[0]])
+            else:
+                min_index = np.argmin([result.fun for result in result_list])
+                mpc_action = result_list[min_index].x
+                #print("choosed ref index :",result_list[min_index])
+                ref_best_index = result_index_list[min_index]           
+                future_ref_array = np.array(multi_future_ref_tuple_list[ref_best_index])
+                
             
-        
 
 
-        # if not results.success:
-        #     print('fail')
-        #     # import sys
-        #     # sys.exit()
-        #     mpc_action = [0.] * horizon * 2
-        #     if obs[0][0] > 1:
-        #         mpc_action[0] = 0.1
-        #         mpc_action[1] = -6.
+            # if not results.success:
+            #     print('fail')
+            #     # import sys
+            #     # sys.exit()
+            #     mpc_action = [0.] * horizon * 2
+            #     if obs[0][0] > 1:
+            #         mpc_action[0] = 0.1
+            #         mpc_action[1] = -6.
+        else:
+            future_ref_array = np.array(multi_future_ref_tuple_list[3])
+            results = minimize(
+                    # lambda u: mpc_cost_function(u, ego_list, future_ref_list, horizon, STEP_TIME, Q, R), # python_function
+                    # lambda u: mpc_cpp.mpc_cost_function(u, ego_list, vehicles_xy_array_static, future_ref_array, Q, R, P),
+                    lambda u: mpc_wrapper(u),
+                    jac = True,
+                    x0 = [0, 0] * horizon,
+                    method = 'SLSQP',
+                    bounds = bounds,
+                    constraints = [ineq_cons, ineq_cons_alpha],
+                    # constraints = (),
+                    options={'disp': False,
+                            'maxiter': 1000,
+                            'ftol' : 1e-4} 
+                    )
+            mpc_action = results.x
+            mpc_action[0] = 0
+            print('v_x:',ego_list[0])
+            if ego_list[0] < 0.5:
+                mpc_action[1] = -0.1
+            if ego_list[0] < 0.05:
+                mpc_action[1] = 0            
+            print('steer:', mpc_action[0])
+            print('a_x:', mpc_action[1])
+
 
 
         obs, reward, done, info = env.step(mpc_action[:2])
+        print('traffic light:',env.v_light)
         #obs, reward, done, info = env.step(np.array([steer_action[name_index], a_x_action[name_index]]))
 
         result_array[name_index,0] = mpc_action[0]     # steer
