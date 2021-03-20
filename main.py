@@ -6,6 +6,7 @@ from scipy.optimize import minimize
 from Env_new import Crossroad
 from Env_utils import L, STEP_TIME,W, deal_with_phi
 import mpc_cpp
+import time
 
 
 
@@ -85,14 +86,11 @@ def run_mpc():
     ref_best_index = 0
     init_ego_state = set_ego_init_state(ref)
 
-    import time
-    start = time.time()
 
     env = Crossroad(init_ego_state = init_ego_state)
 
-    end = time.time()
-    print("Env startup time: ", end - start)
 
+    start = time.perf_counter_ns()
     obs = env.obs    # 自车的状态list， 周车信息的recarray 包含x,y,v,phi
 
     bounds = [(-0.26, 0.26), (-6.1, 2.8)] * horizon
@@ -105,8 +103,8 @@ def run_mpc():
 
     Q = np.array([10, 10, 0., 0., 0])
     R = np.array([0.5, 0.1])
-    P = np.array([0.5*2*100*10])
-    #P = np.array([0])
+    #P = np.array([0.5*2*100*10])
+    P = np.array([0])
 
     for name_index in range(step_length):
 
@@ -125,14 +123,19 @@ def run_mpc():
                 task = route_to_task(veh)
                 vehicles_array[i] = veh_predict(veh, horizon)
             vehicles_xy_array = vehicles_array[:,:,:2].copy()
-            safe_dist = 4
+            safe_dist = 6
             ineq_cons = {'type': 'ineq',
                 'fun' : lambda u: mpc_cpp.mpc_constraints(u, ego_list, vehicles_xy_array, safe_dist),
-                # 'jac': lambda u: mpc_constraints_wrapper(u)
+                'jac': lambda u: mpc_constraints_wrapper(u)
                 }
 
         def mpc_constraints_wrapper(u):
             grad = mpc_cpp.mpc_constraints_jac(u, ego_list, vehicles_xy_array, safe_dist)[1]
+            grad = grad.reshape(-1, horizon * 2)
+            return grad
+
+        def mpc_alpha_constraints_wrapper(u):
+            grad = mpc_cpp.mpc_alpha_constraints_jac(u, ego_list)[1]
             grad = grad.reshape(-1, horizon * 2)
             return grad
 
@@ -144,7 +147,9 @@ def run_mpc():
         # ineq_cons_2 = {'type': 'ineq',
         #     'fun' : lambda u: mpc_cpp.mpc_constraints(u, ego_list, vehicles_xy_array_static, safe_dist)}
         ineq_cons_alpha = {'type': 'ineq',
-            'fun' : lambda u: mpc_cpp.mpc_alpha_constraints(u, ego_list)}
+            'fun' : lambda u: mpc_cpp.mpc_alpha_constraints(u, ego_list),
+            'jac': lambda u: mpc_alpha_constraints_wrapper(u)
+            }
 
 
         #current_ref_point, future_ref_tuple_list = ref.future_ref_points(ego_list[3], ego_list[4], horizon)
@@ -200,7 +205,7 @@ def run_mpc():
             mpc_action = [0.] * horizon * 2
             if obs[0][0] > 2:
                 mpc_action[0] = 0.
-                mpc_action[1] = -2.
+                mpc_action[1] = -5.
             future_ref_array = np.array(multi_future_ref_tuple_list[0])
         elif valueError_list:
             mpc_action = tem_action_array[valueError_list[0],:]
@@ -239,7 +244,8 @@ def run_mpc():
         result_array[name_index,10+horizon*3:10+horizon*4] = mpc_action[slice(0,horizon*2,2)]  # steer_tem
         result_array[name_index,10+horizon*4:10+horizon*5] = mpc_action[slice(1,horizon*2,2)]  # a_x_tem
 
-
+    end = time.perf_counter_ns()
+    print('tol_time:', (end - start)/1e9)
     record_result = result_array
     import datetime
     current_time = datetime.datetime.now()
