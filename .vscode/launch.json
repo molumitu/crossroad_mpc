@@ -19,6 +19,15 @@
             "request": "attach",
             "processId": "${command:pickProcess}",
             "justMyCode": false
-        }
+        },
+        
+        {
+            "name": "Python: current_file",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": false
+        },
     ]
 }

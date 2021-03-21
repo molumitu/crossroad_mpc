@@ -5,7 +5,6 @@ matlab_to_mpc/
 result/
 slprj/
 test/
-sumo_files/
 compare_solver_result/
 *.ipynb
 *.m

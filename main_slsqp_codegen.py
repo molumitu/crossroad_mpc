@@ -53,7 +53,7 @@ def set_ego_init_state(ref):
     x, y, phi = ref.indexs2points(random_index, path_index=0)
     steer = 0.
     a_x = 0.
-    v = 6. 
+    v = 0.1 
     if ref.task == 'left':
         routeID = 'dl'
     elif ref.task == 'straight':
@@ -76,14 +76,13 @@ def set_ego_init_state(ref):
 
 def run_mpc():
 
-    step_length = 150
+    step_length = 200
     
     horizon = 20
 
     task = 'left'
     ref = ReferencePath(task)
 
-    ref_best_index = 0
     init_ego_state = set_ego_init_state(ref)
 
 
@@ -105,9 +104,9 @@ def run_mpc():
     tem_action_array = np.zeros((routes_num, horizon * 2))
     result_array = np.zeros((step_length,10+horizon*5))
 
-    Q = np.array([10, 10, 0., 0., 0])
+    Q = np.array([1, 1, 0., 0., 0])
     R = np.array([0.5, 0.1])
-    # P = np.array([0.5*2*100*10])
+    #P = np.array([0.5*2*100*10])
     P = np.array([0])
     time_list = []
 
@@ -121,16 +120,16 @@ def run_mpc():
         else:
             # 0：left 1:straight 2:right
             # vehicles_array : N*horizon*4   N=8
-            n = len(n_ego_vehicles_list)      # 给python function 用的
+            n = len(n_ego_vehicles_list)
             vehicles_array = np.zeros((n,horizon,4))
             for i, veh in enumerate(n_ego_vehicles_list):
                 task = route_to_task(veh)
                 vehicles_array[i] = veh_predict(veh, horizon)
             vehicles_xy_array = vehicles_array[:,:,:2].copy()
-            safe_dist = 6
+            safe_dist = 5
             ineq_cons = {'type': 'ineq',
                 'fun' : lambda u: mpc_cpp.mpc_constraints(u, ego_list, vehicles_xy_array, safe_dist),
-                #'jac': lambda u: mpc_constraints_wrapper(u)
+                'jac': lambda u: mpc_constraints_wrapper(u)
                 }
 
         def mpc_constraints_wrapper(u):
@@ -145,8 +144,8 @@ def run_mpc():
         # # vehicles_xy_array_static = np.stack((x,y),axis = 2)
         # # ineq_cons_2 = {'type': 'ineq',
         # #     'fun' : lambda u: mpc_cpp.mpc_constraints(u, ego_list, vehicles_xy_array_static, safe_dist)}
-        # ineq_cons_alpha = {'type': 'ineq',
-        #     'fun' : lambda u: mpc_cpp.mpc_alpha_constraints(u, ego_list)}
+        ineq_cons_alpha = {'type': 'ineq',
+            'fun' : lambda u: mpc_cpp.mpc_alpha_constraints(u, ego_list)}
 
 
         #current_ref_point, future_ref_tuple_list = ref.future_ref_points(ego_list[3], ego_list[4], horizon)
@@ -167,7 +166,7 @@ def run_mpc():
 
 
         multi_future_ref_tuple_list = ref.multi_future_ref_points(ego_list[3], ego_list[4], horizon)
-        future_ref_array = np.array(multi_future_ref_tuple_list[0])
+        future_ref_array = np.array(multi_future_ref_tuple_list[1])
 
         start = time.perf_counter_ns()
         results = minimize(
@@ -177,9 +176,9 @@ def run_mpc():
                             jac = True,
                             method = 'SLSQP',
                             bounds = bounds,
-                            constraints = ineq_cons,
+                            constraints = [ineq_cons, ineq_cons_alpha],
                             options={'disp': True,
-                                    'maxiter': 1000,
+                                    'maxiter': 100,
                                     'ftol' : 1e-4} 
                             )
         if results.success:
@@ -187,7 +186,7 @@ def run_mpc():
         else:
             print('fail')
             mpc_action = tem_action_array[0,:]
-            mpc_action[1] = -5.
+            mpc_action[1] = -2.
         end = time.perf_counter_ns()
         time_list.append((end - start) / 1e6)
 
@@ -211,8 +210,8 @@ def run_mpc():
     record_result = result_array
     import datetime
     current_time = datetime.datetime.now()
-    np.savetxt(f'compare_solver_result/slsqp_codegen_result{current_time:%Y_%m_%d_%H_%M_%S}.csv', record_result, delimiter = ',')
-    np.savetxt(f'compare_solver_result/slsqp_codegen_time{current_time:%Y_%m_%d_%H_%M_%S}.csv', time_list)
+    #np.savetxt(f'compare_solver_result/slsqp_codegen_result{current_time:%Y_%m_%d_%H_%M_%S}.csv', record_result, delimiter = ',')
+    #np.savetxt(f'compare_solver_result/slsqp_codegen_time{current_time:%Y_%m_%d_%H_%M_%S}.csv', time_list)
 
     print('tol_time:', (tol_end - tol_start)/1e6)
 

@@ -120,7 +120,7 @@ class Crossroad():
         steer, a_x = trans_action
         state = np.array([current_v_x, current_v_y, current_r, current_x, current_y, current_phi, current_steer, current_a_x])
         action = np.array([steer, a_x])
-        next_ego_state, next_ego_param = state_trans_LPF_py(state, action, STEP_TIME)
+        next_ego_state, next_ego_param = state_trans_LPF(state, action)
         return next_ego_state
 
 

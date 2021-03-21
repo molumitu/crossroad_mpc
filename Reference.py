@@ -34,9 +34,9 @@ class ReferencePath(object):
 
 
                 #---------start_straight_line---------------------------------------------------------
-                start_points_num = int((sl) * meter_pointnum_ratio) + 1
+                start_points_num = int((sl+ end_offset- LANE_WIDTH*0.5) * meter_pointnum_ratio) + 1
                 start_straight_line_x = LANE_WIDTH/2 * np.ones(shape=(start_points_num,))[:-1]
-                start_straight_line_y = np.linspace(-CROSSROAD_SIZE/2 - sl + end_offset- LANE_WIDTH*0.5, -CROSSROAD_SIZE/2 + end_offset- LANE_WIDTH*0.5 , start_points_num)[:-1]
+                start_straight_line_y = np.linspace(-CROSSROAD_SIZE/2 - sl, -CROSSROAD_SIZE/2 + end_offset- LANE_WIDTH*0.5 , start_points_num)[:-1]
 
                 #---------connected_arc_line-----------------------------------------------------------
                 s_vals = np.linspace(0, np.pi/2, arc_points_num, dtype=np.float32)
@@ -44,7 +44,7 @@ class ReferencePath(object):
                 arc_line_y = R * np.sin(s_vals) - R + end_offset
 
                 #---------end_straight_line------------------------------------------------------------
-                end_straight_line_x = np.linspace(-CROSSROAD_SIZE/2, -CROSSROAD_SIZE/2 - sl, end_points_num,                                                     dtype=np.float32)[1:]
+                end_straight_line_x = np.linspace(-CROSSROAD_SIZE/2, -CROSSROAD_SIZE/2 - sl, end_points_num)[1:]
                 end_straight_line_y = end_offset * np.ones(shape=(end_points_num,), dtype=np.float32)[1:]
 
                 #---------------------------------------------------------------------------------------
@@ -106,3 +106,8 @@ class ReferencePath(object):
         index = np.where(index < len(self.path_list[path_index][0]), index, len(self.path_list[path_index][0])-1)  # 避免仿真末尾报错
         point = self.path_list[path_index][0][index], self.path_list[path_index][1][index], self.path_list[path_index][2][index]
         return (point[0], point[1], point[2])
+
+
+if __name__ == '__main__':
+    ref = ReferencePath('left')
+    ref.path_list
