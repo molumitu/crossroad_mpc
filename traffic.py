@@ -41,7 +41,7 @@ class Traffic(object):
         self.v_light = 0
 
         self.first_add = True
-        seed = 5
+        seed = 735080
         import time
         start = time.time()
         port = sumolib.miscutils.getFreeSocketPort()
@@ -94,7 +94,7 @@ class Traffic(object):
         end = time.time()
         print("Sumo startup time: ", end - start)
 
-        while traci.simulation.getTime() < 81:
+        while traci.simulation.getTime() < 10:
             if traci.simulation.getTime() < 80:
                 traci.trafficlight.setPhase('0', 0)
             else:
@@ -215,10 +215,14 @@ class Traffic(object):
                     x, y, a = _convert_sumo_coord_to_car_coord(x_in_sumo, y_in_sumo, a_in_sumo, length)
                     v = veh_info_dict[veh][traci.constants.VAR_SPEED]
                     traci.vehicle.setColor(str(veh),(255,255,255))
-                    if  sqrt((x_ego-x) ** 2 + (y_ego-y) ** 2) < 80 and \
-                        (((route[1] == '4i') and (x > -CROSSROAD_SIZE/2 - 10)) or ((route[1] == '1i') \
-                            and (y > -CROSSROAD_SIZE/2 - 10) and (x > -CROSSROAD_SIZE/2 -10)))\
-                            and x < (x_ego + 5)  and y > (y_ego - 5):
+                    # if  (sqrt((x_ego-x) ** 2 + (y_ego-y) ** 2) < 80) and \
+                    #     (((route[1] == '4i') and (x > -CROSSROAD_SIZE/2 - 10)) or ((route[1] == '1i') \
+                    #         and (y > -CROSSROAD_SIZE/2) and (x < CROSSROAD_SIZE/2)\
+                    #         ))\
+                    #         and x < (x_ego + 15)  and y > (y_ego - 15):
+                    if (sqrt((x_ego-x) ** 2 + (y_ego-y) ** 2) < 30) and\
+                        (((route[1]=='1i' and route[0] != '4o' and (y > -CROSSROAD_SIZE/2 + 15) and (x < CROSSROAD_SIZE/2 + 2))\
+                        or (route[1]=='4i'))and x < (x_ego)  and y > (y_ego)):
                         traci.vehicle.setColor(str(veh),(255,0,0))
                         self.n_ego_vehicles[egoID].append(dict(veh_ID=veh, x=x, y=y, v=v, phi=a, l=length, w=width, route=route))
                         self.n_ego_vehicles_list[egoID].append([x, y, v, a, route])
@@ -227,10 +231,12 @@ class Traffic(object):
         self.v_light = traci.trafficlight.getPhase('0')
 
     def _traffic_light_manage(self, sim_time):
-        if sim_time%60 <30:
-            return 2
-        else:
+        if sim_time%100 <50:
             return 0
+        elif sim_time < 55:
+            return 1
+        else:
+            return 2
 
     def sim_step(self):
         self.sim_time += STEP_TIME
