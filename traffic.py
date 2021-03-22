@@ -94,7 +94,7 @@ class Traffic(object):
         end = time.time()
         print("Sumo startup time: ", end - start)
 
-        while traci.simulation.getTime() < 19:
+        while traci.simulation.getTime() < 39:
             if traci.simulation.getTime() < 80:
                 traci.trafficlight.setPhase('0', 0)
             else:

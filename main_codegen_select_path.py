@@ -125,7 +125,7 @@ def run_mpc():
                 task = route_to_task(veh)
                 vehicles_array[i] = veh_predict(veh, horizon)
             vehicles_xy_array = vehicles_array[:,:,:2].copy()
-            safe_dist = 5.
+            safe_dist = 5
             ineq_cons = {'type': 'ineq',
                 'fun' : lambda u: mpc_cpp.mpc_constraints(u, ego_list, vehicles_xy_array, safe_dist),
                 'jac': lambda u: mpc_constraints_wrapper(u)}
@@ -171,7 +171,7 @@ def run_mpc():
                                     x0 = tem_action_array[i,:].flatten(),
                                     method = 'SLSQP',
                                     bounds = bounds,
-                                    constraints = [ineq_cons_alpha],
+                                    constraints = [ineq_cons,ineq_cons_alpha],
                                     # constraints = (),
                                     options={'disp': False,
                                             'maxiter': 1000,

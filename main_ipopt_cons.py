@@ -53,12 +53,12 @@ def veh_predict(veh, horizon):
     return veh_array
 
 def set_ego_init_state(ref):
-    random_index = 120
+    random_index = 1200
 
     x, y, phi = ref.indexs2points(random_index, path_index = 0)
     steer = 0.
     a_x = 0.
-    v = 6. 
+    v = 1 
     if ref.task == 'left':
         routeID = 'dl'
     elif ref.task == 'straight':
@@ -80,7 +80,7 @@ def set_ego_init_state(ref):
                             ))    # 这里指出了自车的名字叫ego, 这里也可以加多车
 
 def run_mpc():
-    step_length = 150
+    step_length = 1500
     horizon = 20
 
     task = 'left'
@@ -149,6 +149,7 @@ def run_mpc():
         start = time.perf_counter_ns()
         sol=solver(x0=tem_action_array,lbx=lbx,ubx=ubx, lbg=lbg, ubg=ubg, p=params)
         end = time.perf_counter_ns()
+        print('solver startup', ((end - start)/1e9))
         time_list.append((end - start)/1e6)
 
 

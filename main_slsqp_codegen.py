@@ -76,7 +76,7 @@ def set_ego_init_state(ref):
 
 def run_mpc():
 
-    step_length = 200
+    step_length = 250
     
     horizon = 20
 
@@ -105,7 +105,7 @@ def run_mpc():
     result_array = np.zeros((step_length,10+horizon*5))
 
     Q = np.array([1, 1, 0., 0., 0])
-    R = np.array([0.5, 0.1])
+    R = np.array([0.05, 0.01])
     #P = np.array([0.5*2*100*10])
     P = np.array([0])
     time_list = []
@@ -126,7 +126,7 @@ def run_mpc():
                 task = route_to_task(veh)
                 vehicles_array[i] = veh_predict(veh, horizon)
             vehicles_xy_array = vehicles_array[:,:,:2].copy()
-            safe_dist = 5
+            safe_dist = 3
             ineq_cons = {'type': 'ineq',
                 'fun' : lambda u: mpc_cpp.mpc_constraints(u, ego_list, vehicles_xy_array, safe_dist),
                 'jac': lambda u: mpc_constraints_wrapper(u)
@@ -186,7 +186,7 @@ def run_mpc():
         else:
             print('fail')
             mpc_action = tem_action_array[0,:]
-            mpc_action[1] = -2.
+            mpc_action[1] = -1.
         end = time.perf_counter_ns()
         time_list.append((end - start) / 1e6)
 
