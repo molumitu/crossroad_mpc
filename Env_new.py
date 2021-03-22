@@ -45,7 +45,7 @@ class Crossroad():
 
 
     def _get_ego_dynamics(self, next_ego_state):  # update 
-        out = dict(v_x=next_ego_state[0],
+        next = dict(v_x=next_ego_state[0],
                    v_y=next_ego_state[1],
                    r=next_ego_state[2],
                    x=next_ego_state[3],
@@ -56,8 +56,8 @@ class Crossroad():
                    l=L,
                    w=W,
                    )
-        self.ego_dynamics = out  # 完成自车动力学参数的更新
-        return out
+        self.ego_dynamics = next  # 完成自车动力学参数的更新
+        return next
 
     def _get_all_info(self): 
         all_info = dict(all_vehicles=self.all_vehicles,

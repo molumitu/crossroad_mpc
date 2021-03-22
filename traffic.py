@@ -244,7 +244,7 @@ class Traffic(object):
         traci.trafficlight.setPhase('0', self.v_light)
         traci.simulationStep()
         self._get_vehicles()
-        self._get_traffic_light()
+        # self._get_traffic_light()
         self.collision_check()
         for egoID, collision_flag in self.n_ego_collision_flag.items():
             if collision_flag:
