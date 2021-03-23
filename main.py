@@ -15,23 +15,36 @@ from init_ego_state import generate_ego_init_state
 
 def run():
     step_length = 600
+    ego_ID_dict = {'ego':4500, 'ego1':120, 'ego2':1200, 'ego3':2700}
+    ego_ID_keys = ego_ID_dict.keys()
+
     init_ego_state = {}
     init_ego_ref = {}
-    init_ego_state['ego'], init_ego_ref['ego'] = generate_ego_init_state('dl', 4500)
-    init_ego_state['ego1'], init_ego_ref['ego1'] = generate_ego_init_state('dl', 120)
+    mpc_controller = {}
+
+    for egoID, index in ego_ID_dict.items():
+        init_ego_state[egoID], init_ego_ref[egoID] = generate_ego_init_state('dl', index)
+        mpc_controller[egoID] = MPControl(init_ego_ref[egoID])
+
     env = Env(init_ego_state)
+
+
     start = time.perf_counter_ns()
     obs = env.obs    # 自车的状态list， 周车信息的recarray 包含x,y,v,phi
-    mpc = MPControl(init_ego_ref['ego'])
-    mpc1 = MPControl(init_ego_ref['ego1'])
+
+
     n_ego_vehicles_list = {}
     mpc_action = {}
     for name_index in range(step_length):
-        n_ego_vehicles_list['ego'] = env.traffic.n_ego_vehicles_list['ego']
-        n_ego_vehicles_list['ego1'] = env.traffic.n_ego_vehicles_list['ego1']
-        mpc_action['ego'] = mpc.step(obs[0]['ego'], n_ego_vehicles_list['ego'], env.traffic_light)
-        mpc_action['ego1'] = mpc1.step(obs[0]['ego1'], n_ego_vehicles_list['ego1'], env.traffic_light)
+        for egoID in ego_ID_keys:
+            n_ego_vehicles_list[egoID] = env.traffic.each_ego_vehicles_list[egoID]
+            mpc_action[egoID] = mpc_controller[egoID].step(obs[0][egoID], n_ego_vehicles_list[egoID], env.traffic_light)
+        # n_ego_vehicles_list['ego'] = env.traffic.each_ego_vehicles_list['ego']
+        # n_ego_vehicles_list['ego1'] = env.traffic.each_ego_vehicles_list['ego1']
+        # mpc_action['ego'] = mpc.step(obs[0]['ego'], n_ego_vehicles_list['ego'], env.traffic_light)
+        # mpc_action['ego1'] = mpc1.step(obs[0]['ego1'], n_ego_vehicles_list['ego1'], env.traffic_light)
         obs, reward, done, info = env.step(mpc_action)
+        ego_ID_keys = env.n_ego_dict.keys()
         print('traffic light:',env.traffic_light)
 
     #obs, reward, done, info = env.step(np.array([steer_action[name_index], a_x_action[name_index]])) 复盘用

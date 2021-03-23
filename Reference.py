@@ -89,6 +89,7 @@ class ReferencePath(object):
         future_ref_list = []
 
         # current_index = current_index - path_index * 30
+        
         # # # #### 给单点， 作切线当作ref
         # next_x, next_y, next_phi = self.indexs2points(np.array(current_index + 80), path_index)
         # next_phi_rad = next_phi / 180. * np.pi

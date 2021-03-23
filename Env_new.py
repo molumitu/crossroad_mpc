@@ -7,21 +7,20 @@ from mpc_cpp import state_trans_LPF
 warnings.filterwarnings("ignore")
 
 
-class Env():
+class Env:
     def __init__(self,init_ego_state):
-        self.n_ego_keys = init_ego_state.keys()        
+        
         self.init_state = init_ego_state
         self.traffic = Traffic()
         self.traffic.init_traffic(self.init_state)
-        self.traffic.sim_step()   #### 存疑，是否有必要step一步
+        # self.traffic.sim_step()   #### 存疑，是否有必要step一步
         self.traffic_light = self.traffic.traffic_light  #@property
+        
+        self.n_ego_dict = {}
+        for egoID in init_ego_state.keys():
+            self.n_ego_dict[egoID] = Ego(init_ego_state[egoID])
+            self.n_ego_dict[egoID].update_relevant_vehicles(self.traffic.each_ego_vehicles[egoID])
 
-
-        self.ego = Ego(init_ego_state['ego'])
-        self.ego1 = Ego(init_ego_state['ego1'])
-        # self.all_vehicles = self.traffic.n_ego_vehicles['ego']
-        self.ego.update_relevant_vehicles(self.traffic.n_ego_vehicles['ego']) 
-        self.ego1.update_relevant_vehicles(self.traffic.n_ego_vehicles['ego1'])
         self.all_info = None #
         self._get_all_info()
 
@@ -33,22 +32,6 @@ class Env():
         self.reward = 0
         self.reward_info = None
 
-
-    # def _get_ego_dynamics(self, next_ego_state):  # update 
-    #     next = dict(v_x=next_ego_state[0],
-    #                v_y=next_ego_state[1],
-    #                r=next_ego_state[2],
-    #                x=next_ego_state[3],
-    #                y=next_ego_state[4],
-    #                phi=next_ego_state[5],
-    #                steer=next_ego_state[6],
-    #                a_x=next_ego_state[7],                   
-    #                l=L,
-    #                w=W,
-    #                )
-    #     self.ego_dynamics = next  # 完成自车动力学参数的更新
-    #     return next
-
     def _get_all_info(self): 
         # all_info = dict(all_vehicles=self.all_vehicles,
         #                 ego_dynamics=self.ego_dynamics,
@@ -57,14 +40,11 @@ class Env():
         return all_info
 
     def _get_obs(self):
-        # ego_vector = self._construct_ego_vector_short() 
-        # vehs_recarray = self._construct_veh_recarray()
         ego_vector = {}
         vehs_recarray = {}
-        ego_vector['ego'] = self.ego._construct_ego_vector_short() 
-        vehs_recarray['ego'] = self.ego._construct_veh_recarray()
-        ego_vector['ego1'] = self.ego1._construct_ego_vector_short() 
-        vehs_recarray['ego1'] = self.ego1._construct_veh_recarray()
+        for egoID, ego in self.n_ego_dict.items():
+            ego_vector[egoID] = ego._construct_ego_vector_short()
+            vehs_recarray[egoID] = ego._construct_veh_recarray()
         return ego_vector, vehs_recarray
 
     def compute_reward(self):
@@ -72,23 +52,31 @@ class Env():
         reward_info = None
         return reward, reward_info
 
+    def _check_n_ego_dict(self):
+        n_ego_dict = self.n_ego_dict.copy()
+        for egoID, ego in n_ego_dict.items():
+            ego_x = ego.ego_dynamics['x']
+            ego_y = ego.ego_dynamics['y']
+            if abs(ego_x) > 97 or abs(ego_y) > 97:
+                del self.n_ego_dict[egoID]
+
     def step(self, action):
         self.action = action
+        self._check_n_ego_dict()
         next_ego_state = {}
         ego_dynamics = {}
-        next_ego_state['ego'] = self.ego._get_next_ego_state(self.action['ego'])
-        ego_dynamics['ego'] = self.ego._get_ego_dynamics(next_ego_state['ego'])
-        next_ego_state['ego1'] = self.ego1._get_next_ego_state(self.action['ego1'])
-        ego_dynamics['ego1'] = self.ego1._get_ego_dynamics(next_ego_state['ego1'])
-        self.traffic.set_own_car(ego_dynamics)
-        # self.traffic.set_own_car(dict(ego=ego_dynamics['ego']))
-        # self.traffic.set_own_car(dict(ego1=ego_dynamics['ego1']))
-
+        for egoID, ego in self.n_ego_dict.items():
+            next_ego_state[egoID] = ego._get_next_ego_state(self.action[egoID])
+            ego_dynamics[egoID] = ego._get_ego_dynamics(next_ego_state[egoID])
+        
+        self.traffic.sync_ego_vehicles(ego_dynamics)
         self.traffic.sim_step()
+        self.traffic.get_vehicles_for_each_ego(self.n_ego_dict.keys())
         self.traffic_light = self.traffic.traffic_light
-        self.n_ego_keys = self.traffic.n_ego_dict.keys()
-        self.ego.update_relevant_vehicles(self.traffic.n_ego_vehicles['ego'])
-        self.ego1.update_relevant_vehicles(self.traffic.n_ego_vehicles['ego1'])
+
+        for egoID, ego in self.n_ego_dict.items():  
+            ego.update_relevant_vehicles(self.traffic.each_ego_vehicles[egoID])
+
         self.obs = self._get_obs()
 
 
@@ -98,10 +86,10 @@ class Env():
         return self.obs, reward, done, all_info
         # all_info 作为一个容器，之后可以往里面塞信息
 
-class Ego():
+class Ego:
     def __init__(self, init_ego_state):
         self.init_state = init_ego_state
-        ego_dynamics = self._get_ego_dynamics([self.init_state['v_x'],
+        self._get_ego_dynamics([self.init_state['v_x'],
                                         self.init_state['v_y'],
                                         self.init_state['r'],
                                         self.init_state['x'],
@@ -112,9 +100,7 @@ class Ego():
                                         )
     def update_relevant_vehicles(self, relevant_vehicles):
         self.relevant_vehicles = relevant_vehicles
-        # self.traffic.n_ego_vehicles['ego']
 
-    
     def _get_ego_dynamics(self, next_ego_state):  # update 
         next = dict(v_x=next_ego_state[0],
                    v_y=next_ego_state[1],
