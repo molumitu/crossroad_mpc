@@ -1,10 +1,7 @@
 from scipy.optimize.zeros import VALUEERR
-from Reference import ReferencePath
 import numpy as np
-
 from scipy.optimize import minimize
-from Env_new import Env
-from Env_utils import L, STEP_TIME,W, deal_with_phi, horizon
+from Env_utils import horizon
 from predict_surroundings import route_to_task, veh_predict
 import mpc_cpp
 import time
@@ -25,6 +22,7 @@ class MPControl():
 
     def step(self, ego_list, n_ego_vehicles_list, traffic_light):
         # ego_list [v_x, v_y, r, x, y, phi, steer_current, a_x_current]
+        # n_ego_vehicles_list [x, y, v, a, route]
         ref_best_index = 0
 
         # 0：left 1:straight 2:right
@@ -41,8 +39,6 @@ class MPControl():
             'jac': lambda u: mpc_cpp.mpc_constraints_wrapper(u, ego_list, vehicles_xy_array, safe_dist)
             }
 
-
-
         # # # only static obstacle##################################################################
         # x = np.ones((1,horizon)) * -22
         # y = np.ones((1,horizon)) * -1.5
@@ -56,7 +52,6 @@ class MPControl():
             'fun' : lambda u: mpc_cpp.mpc_alpha_constraints(u, ego_list),
             'jac': lambda u: mpc_cpp.mpc_alpha_constraints_wrapper(u, ego_list)
             }
-
 
         #current_ref_point, future_ref_tuple_list = self.ref.future_ref_points(ego_list[3], ego_list[4], horizon)
         multi_future_ref_tuple_list = self.ref.multi_future_ref_points(ego_list[3], ego_list[4], horizon)

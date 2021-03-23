@@ -1,17 +1,9 @@
-from scipy.optimize.zeros import VALUEERR
 from Reference import ReferencePath
 import numpy as np
-
-from scipy.optimize import minimize
-from Env_new import Env
-from Env_utils import L, STEP_TIME,W, deal_with_phi, horizon
-from predict_surroundings import route_to_task, veh_predict
-import mpc_cpp
-import time
+from Env_utils import L, W
 
 
 def generate_ego_init_state(routeID, index):
- 
     if routeID == 'dl':
         task = 'left'
     elif routeID == 'du':

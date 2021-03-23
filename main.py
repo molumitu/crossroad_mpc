@@ -1,13 +1,5 @@
 from controller import MPControl
-from scipy.optimize.zeros import VALUEERR
-from Reference import ReferencePath
-import numpy as np
-
-from scipy.optimize import minimize
-from Env_new import Env
-from Env_utils import L, STEP_TIME,W, deal_with_phi, horizon
-from predict_surroundings import route_to_task, veh_predict
-import mpc_cpp
+from Env import Env
 import time
 from init_ego_state import generate_ego_init_state
 
@@ -27,28 +19,23 @@ def run():
         mpc_controller[egoID] = MPControl(init_ego_ref[egoID])
 
     env = Env(init_ego_state)
-
-
-    start = time.perf_counter_ns()
     obs = env.obs    # 自车的状态list， 周车信息的recarray 包含x,y,v,phi
-
 
     n_ego_vehicles_list = {}
     mpc_action = {}
+
+    start = time.perf_counter_ns()
     for name_index in range(step_length):
         for egoID in ego_ID_keys:
             n_ego_vehicles_list[egoID] = env.traffic.each_ego_vehicles_list[egoID]
             mpc_action[egoID] = mpc_controller[egoID].step(obs[0][egoID], n_ego_vehicles_list[egoID], env.traffic_light)
-        # n_ego_vehicles_list['ego'] = env.traffic.each_ego_vehicles_list['ego']
-        # n_ego_vehicles_list['ego1'] = env.traffic.each_ego_vehicles_list['ego1']
-        # mpc_action['ego'] = mpc.step(obs[0]['ego'], n_ego_vehicles_list['ego'], env.traffic_light)
-        # mpc_action['ego1'] = mpc1.step(obs[0]['ego1'], n_ego_vehicles_list['ego1'], env.traffic_light)
+
         obs, reward, done, info = env.step(mpc_action)
         ego_ID_keys = env.n_ego_dict.keys()
         print('traffic light:',env.traffic_light)
 
-    #obs, reward, done, info = env.step(np.array([steer_action[name_index], a_x_action[name_index]])) 复盘用
 
+    # obs, reward, done, info = env.step(np.array([steer_action[name_index], a_x_action[name_index]])) 复盘用
     # self.result_array[name_index,0] = mpc_action[0]     # steer
     # self.result_array[name_index,1] = mpc_action[1]     # a_x 
     # self.result_array[name_index,2:10] = obs[0]          # v_x, v_y, r, x, y, phi, steer, a_x
@@ -61,8 +48,6 @@ def run():
     # self.result_array[name_index,10+horizon*4:10+horizon*5] = mpc_action[slice(1,horizon*2,2)]  # a_x_tem
     # self.result_array[name_index,10+horizon*5] = mpc_signal #记录从哪个控制器获得的控制量
             
-            
-
     end = time.perf_counter_ns()
     print('tol_time:', (end - start)/1e9)
     # record_result = result_array
