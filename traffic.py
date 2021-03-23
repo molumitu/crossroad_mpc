@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import copy
-import math
 import os
-import random
 import sys
 from collections import defaultdict
 from math import fabs, cos, sin, pi ,sqrt
@@ -29,24 +27,13 @@ SUMO_BINARY = checkBinary('sumo-gui')
 
 class Traffic(object):
 
-    def __init__(self):  # mode 'display' or 'training'
-        self.random_traffic = None
-        self.sim_time = 0
-        self.n_ego_vehicles = defaultdict(list)
-        self.n_ego_vehicles_list = defaultdict(list)
+    def __init__(self):
         self.step_time = str(STEP_TIME)
-        self.collision_flag = False
-        self.n_ego_collision_flag = {}
-        self.collision_ego_id = None
-        self.v_light = 0
-
-        self.first_add = True
-        seed = 735080
+        seed = 73555608
         import time
         start = time.time()
         port = sumolib.miscutils.getFreeSocketPort()
         try:
-            
             traci.start(
                 [SUMO_BINARY, "-c", SUMOCFG_DIR,
                  "--step-length", self.step_time,
@@ -56,7 +43,7 @@ class Traffic(object):
                  # "--quit-on-end",
                  "--no-warnings",
                  "--no-step-log",
-                 "--collision.action", "remove"
+                 #"--collision.action", "remove"
                  '--seed', str(int(seed))
                  ], port=port, numRetries=5)  # '--seed', str(int(seed))
         except FatalTraCIError:
@@ -89,86 +76,43 @@ class Traffic(object):
                                                 traci.constants.VAR_EDGES,
                                                 # traci.constants.VAR_ROUTE_INDEX
                                                 ],
-                                       0, 2147483647)
-        
+                                       0, 999999999999)
         end = time.time()
         print("Sumo startup time: ", end - start)
-
-        while traci.simulation.getTime() < 10:
-            if traci.simulation.getTime() < 80:
-                traci.trafficlight.setPhase('0', 0)
-            else:
-                traci.trafficlight.setPhase('0', 2)
-
+        # 先让交通流运行一段时间
+        while traci.simulation.getTime() < 20:   #这里的时间单位是秒
+            traci.trafficlight.setPhase('0', 2)
             traci.simulationStep()
-        
-    def __del__(self):
-        traci.close()
 
-    def add_self_car(self, n_ego_dict):
-        if self.first_add == True:
-            for egoID, ego_dict in n_ego_dict.items():
-                ego_v_x = ego_dict['v_x']
-                ego_v_y = ego_dict['v_y']
-                ego_l = ego_dict['l']
-                ego_x = ego_dict['x']
-                ego_y = ego_dict['y']
-                ego_phi = ego_dict['phi']
-                ego_x_in_sumo, ego_y_in_sumo, ego_a_in_sumo = _convert_car_coord_to_sumo_coord(ego_x, ego_y, ego_phi, ego_l)
-                edgeID, lane = xy2_edgeID_lane(ego_x, ego_y)
+    def add_ego_vehicles(self, n_ego_dict):
+        all_vehicles = traci.vehicle.getContextSubscriptionResults('collector')
 
-                traci.vehicle.add(vehID=egoID, routeID=ego_dict['routeID'],typeID='self_car',departLane = lane, departPos = 0)
-                traci.vehicle.moveToXY(egoID, edgeID, lane, ego_x_in_sumo, ego_y_in_sumo, ego_a_in_sumo, keepRoute=1)
-                traci.vehicle.setLength(egoID, ego_dict['l'])
-                traci.vehicle.setWidth(egoID, ego_dict['w'])
-                traci.vehicle.setSpeed(egoID, ego_v_x)
-            self.first_add = False
-            # try:
-            #     traci.vehicle.moveToXY(egoID, edgeID, lane, ego_x_in_sumo, ego_y_in_sumo, ego_a_in_sumo, keepRoute=1)
-            # except traci.exceptions.TraCIException:
-            #     print('Don\'t worry, it\'s handled well')
-            #     traci.vehicle.addLegacy(vehID=egoID, routeID=ego_dict['routeID'],
-            #                             depart=0, pos=20, lane=lane, speed=ego_dict['v_x'],
-            #                             typeID='self_car')
-            #     traci.vehicle.moveToXY(egoID, edgeID, lane, ego_x_in_sumo, ego_y_in_sumo, ego_a_in_sumo, keepRoute=1)
-
-
-
-    def generate_random_traffic(self):
-        random_traffic = traci.vehicle.getContextSubscriptionResults('collector')
-        random_traffic = copy.deepcopy(random_traffic)
-
+        other_vehicles = copy.deepcopy(all_vehicles)
         for ego_id in self.n_ego_dict.keys():
-            if ego_id in random_traffic:
-                del random_traffic[ego_id]
+            if ego_id in other_vehicles:
+                del other_vehicles[ego_id]
 
-        return random_traffic
 
-    def init_traffic(self, init_n_ego_dict):
-        self.sim_time = 0
-        self.n_ego_vehicles = defaultdict(list)
-        self.n_ego_vehicles_list = defaultdict(list)
-        self.collision_flag = False
-        self.n_ego_collision_flag = {}
-        self.collision_ego_id = None
-        self.v_light = 2
-        self.n_ego_dict = init_n_ego_dict
-        traci.trafficlight.setPhase('0', self.v_light)
-        random_traffic = self.generate_random_traffic()
+        for egoID, ego_dict in n_ego_dict.items():
+            ego_v_x = ego_dict['v_x']
+            ego_l = ego_dict['l']
+            ego_x = ego_dict['x']
+            ego_y = ego_dict['y']
+            ego_phi = ego_dict['phi']
+            ego_x_in_sumo, ego_y_in_sumo, ego_a_in_sumo = _convert_car_coord_to_sumo_coord(ego_x, ego_y, ego_phi, ego_l)
+            edgeID, lane = xy2_edgeID_lane(ego_x, ego_y)
+            traci.vehicle.add(vehID=egoID, routeID=ego_dict['routeID'],typeID='self_car',departLane = lane, departPos = 0)
+            traci.vehicle.moveToXY(egoID, edgeID, lane, ego_x_in_sumo, ego_y_in_sumo, ego_a_in_sumo, keepRoute=1)
+            traci.vehicle.setLength(egoID, ego_dict['l'])
+            traci.vehicle.setWidth(egoID, ego_dict['w'])
+            traci.vehicle.setSpeed(egoID, ego_v_x)
 
-        self.add_self_car(init_n_ego_dict)
-
-        # move ego to the given position and remove conflict cars
-        for egoID, ego_dict in self.n_ego_dict.items():
-            ego_x, ego_y, ego_v_x, ego_v_y, ego_phi, ego_l, ego_w = ego_dict['x'], ego_dict['y'], ego_dict['v_x'],\
-                                                                    ego_dict['v_y'], ego_dict['phi'], ego_dict['l'], \
-                                                                    ego_dict['w']
-            for veh in random_traffic:
-                x_in_sumo, y_in_sumo = random_traffic[veh][traci.constants.VAR_POSITION]
-                a_in_sumo = random_traffic[veh][traci.constants.VAR_ANGLE]
-                veh_l = random_traffic[veh][traci.constants.VAR_LENGTH]
-                veh_v = random_traffic[veh][traci.constants.VAR_SPEED]
-                # veh_sig = random_traffic[veh][traci.constants.VAR_SIGNALS]
+            for veh in other_vehicles:
+                x_in_sumo, y_in_sumo = other_vehicles[veh][traci.constants.VAR_POSITION]
+                a_in_sumo = other_vehicles[veh][traci.constants.VAR_ANGLE]
+                veh_l = other_vehicles[veh][traci.constants.VAR_LENGTH]
+                veh_v = other_vehicles[veh][traci.constants.VAR_SPEED]
+                # veh_sig = other_vehicles[veh][traci.constants.VAR_SIGNALS]
                 # 10: left and brake 9: right and brake 1: right 8: brake 0: no signal 2: left
 
                 x, y, a = _convert_sumo_coord_to_car_coord(x_in_sumo, y_in_sumo, a_in_sumo, veh_l)
@@ -180,17 +124,42 @@ class Traffic(object):
                                                                                                            a_in_ego_coord)
                 if (-5 < x_in_ego_coord < 1 * (ego_v_x) + ego_l/2. + veh_l/2. + 2 and abs(y_in_ego_coord) < 3) or \
                         (-5 < ego_x_in_veh_coord < 1 * (veh_v) + ego_l/2. + veh_l/2. + 2 and abs(ego_y_in_veh_coord) <3):
-                    traci.vehicle.moveToXY(veh, '4i', 1, -80, 1.85, 180, 2)
-                    # traci.vehicle.remove(vehID=veh)
-                # if 0<x_in_sumo<3.5 and -22<y_in_sumo<-15:# and veh_sig!=1 and veh_sig!=9:
-                #     traci.vehicle.moveToXY(veh, '4o', 1, -80, 1.85, 180,2)
-                #     traci.vehicle.remove(vehID=veh)
+                    #traci.vehicle.moveToXY(veh, '4i', 1, -80, 1.85, 180, 2)
+                    traci.vehicle.remove(vehID=veh)
+
+
+    def init_traffic(self, init_n_ego_dict):
+        self.sim_time = 0
+        self.all_vehicles = traci.vehicle.getContextSubscriptionResults('collector')  # 最原始的信息
+        self.n_ego_vehicles = defaultdict(list)
+        self.n_ego_vehicles_list = defaultdict(list)  #返回的值比较简短
+
+        self.collision_flag = False
+        self.n_ego_collision_flag = {}
+        self.collision_ego_id = None
+
+
+        self.n_ego_dict = init_n_ego_dict
+
+        self.traffic_light = 0
+        traci.trafficlight.setPhase('0', self.traffic_light)
+        
+
+        # add ego and move ego to the given position and remove conflict cars
+        self.add_ego_vehicles(init_n_ego_dict)
+
+
+
+        self._update_traffic_light()
+        traci.simulationStep()
+        self.all_vehicles = traci.vehicle.getContextSubscriptionResults('collector')  # 最原始的信息
+        self._update_n_ego_dict()
+        self._get_vehicles()
 
     def _get_vehicles(self):
         self.n_ego_vehicles = defaultdict(list)  # 清零
         self.n_ego_vehicles_list = defaultdict(list)
-        veh_infos = traci.vehicle.getContextSubscriptionResults('collector')  # 最原始的信息
-        traci.vehicle.setColor('collector',(255,0,0))
+        veh_infos = self.all_vehicles
 
         for egoID in self.n_ego_dict.keys():
             veh_info_dict = copy.deepcopy(veh_infos)
@@ -223,37 +192,54 @@ class Traffic(object):
                     if (sqrt((x_ego-x) ** 2 + (y_ego-y) ** 2) < 30) and\
                         (((route[1]=='1i' and route[0] != '4o' and (y > -CROSSROAD_SIZE/2 + 15) and (x < CROSSROAD_SIZE/2 + 2))\
                         or (route[1]=='4i'))and x < (x_ego)  and y > (y_ego)):
-                        traci.vehicle.setColor(str(veh),(255,0,0))
+                        if veh not in self.n_ego_dict.keys():
+                            traci.vehicle.setColor(str(veh),(255,0,0))
                         self.n_ego_vehicles[egoID].append(dict(veh_ID=veh, x=x, y=y, v=v, phi=a, l=length, w=width, route=route))
                         self.n_ego_vehicles_list[egoID].append([x, y, v, a, route])
 
     def _get_traffic_light(self):
-        self.v_light = traci.trafficlight.getPhase('0')
+        return traci.trafficlight.getPhase('0')
 
-    def _traffic_light_manage(self, sim_time):
-        if sim_time%100 <50:
-            return 0
+    def _update_n_ego_dict(self):
+        n_ego_dict = self.n_ego_dict.copy()
+        for egoID, ego_dict in n_ego_dict.items():
+            ego_x = ego_dict['x']
+            ego_y = ego_dict['y']
+            #print('egoID',egoID,'ego_x', ego_x)
+            if abs(ego_x) > 97 or abs(ego_y) > 97:
+                del self.n_ego_dict[egoID]
+
+    def _update_traffic_light(self):
+        sim_time  = self.sim_time % 60
+        if sim_time < 25:
+            self.traffic_light = 0
+        elif sim_time < 30:
+            self.traffic_light = 1
         elif sim_time < 55:
-            return 1
+            self.traffic_light = 2
         else:
-            return 2
+            self.traffic_light = 3
+        traci.trafficlight.setPhase('0', self.traffic_light)
 
     def sim_step(self):
-        self.sim_time += STEP_TIME
-        self.v_light = self._traffic_light_manage(self.sim_time)
-        traci.trafficlight.setPhase('0', self.v_light)
-        traci.simulationStep()
-        self._get_vehicles()
-        # self._get_traffic_light()
-        self.collision_check()
-        for egoID, collision_flag in self.n_ego_collision_flag.items():
-            if collision_flag:
-                self.collision_flag = True
-                self.collision_ego_id = egoID
 
-    def set_own_car(self, n_ego_dict_):
-        assert len(self.n_ego_dict) == len(n_ego_dict_)
-        for egoID in self.n_ego_dict.keys():
+        self.sim_time += STEP_TIME
+        self._update_traffic_light()
+        traci.simulationStep()
+        self.all_vehicles = traci.vehicle.getContextSubscriptionResults('collector')  # 最原始的信息
+        self._update_n_ego_dict()
+        self._get_vehicles()
+
+        # self.collision_check()
+        # for egoID, collision_flag in self.n_ego_collision_flag.items():
+        #     if collision_flag:
+        #         self.collision_flag = True
+        #         self.collision_ego_id = egoID
+
+    def set_own_car(self, n_ego_dict_):  #n_ego_dict由env传过来，在env中维护其增减操作
+        # assert len(self.n_ego_dict) == len(n_ego_dict_)
+        # for egoID in self.n_ego_dict.keys():   #周车数量可变的情况下，不需要这个assert
+        for egoID in n_ego_dict_.keys():
             self.n_ego_dict[egoID]['v_x'] = ego_v_x = n_ego_dict_[egoID]['v_x']
             self.n_ego_dict[egoID]['v_y'] = ego_v_y = n_ego_dict_[egoID]['v_y']
             self.n_ego_dict[egoID]['r'] = ego_r = n_ego_dict_[egoID]['r']

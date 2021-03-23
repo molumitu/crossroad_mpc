@@ -19,7 +19,7 @@ class ReferencePath(object):
         sl = 40  # straight line length, equal to extensions
         meter_pointnum_ratio = 100 
         end_points_num = int(2.5*sl * meter_pointnum_ratio) + 1
-        arc_points_num = int((4222 +1) * 1.2) 
+        arc_points_num = int((4222 +1) * 1.5) 
         # the length of the arc is 42.2152m
         R = CROSSROAD_SIZE/2 + LANE_WIDTH/2
         if task == 'left':
@@ -32,7 +32,7 @@ class ReferencePath(object):
                 start_points_num = int((sl+ end_offset- LANE_WIDTH*0.5) * meter_pointnum_ratio) + 1
                 start_straight_line_x = LANE_WIDTH/2 * np.ones(shape=(start_points_num,))[:-1]
                 start_straight_line_y = np.linspace(-CROSSROAD_SIZE/2 - sl, -CROSSROAD_SIZE/2 + end_offset- LANE_WIDTH*0.5 , start_points_num)[:-1]
-
+                
                 #---------connected_arc_line-----------------------------------------------------------
                 s_vals = np.linspace(0, np.pi/2, arc_points_num)
                 arc_line_x = R * np.cos(s_vals) - R + start_offsets

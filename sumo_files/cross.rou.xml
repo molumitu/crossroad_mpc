@@ -69,6 +69,6 @@
     <flow id="carflow_2.4" type="car_2" begin="0.00" departLane="best" departPos="random" departSpeed="random" from="4o" to="2i" vehsPerHour="600.00"/>
     <flow id="carflow_3.1" type="car_3" begin="0.00" departLane="best" departPos="random" departSpeed="random" from="1o" to="2i" vehsPerHour="600.00"/>
     <flow id="carflow_3.2" type="car_3" begin="0.00" departLane="best" departPos="random" departSpeed="random" from="2o" to="3i" vehsPerHour="600.00"/>
-    <flow id="carflow_3.3" type="car_3" begin="0.00" departLane="best" departPos="random" departSpeed="random" from="3o" to="4i" vehsPerHour="600.00"/>
+    <flow id="carflow_3.3" type="car_3" begin="0.00" departLane="best" departPos="random" departSpeed="random" from="3o" to="4i" vehsPerHour="200.00"/>
     <flow id="carflow_3.4" type="car_3" begin="0.00" departLane="best" departPos="random" departSpeed="random" from="4o" to="1i" vehsPerHour="600.00"/>
 </routes>
