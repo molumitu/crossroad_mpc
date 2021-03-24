@@ -6,8 +6,10 @@ from init_ego_state import generate_ego_init_state
 
 
 def run():
-    step_length = 600
-    ego_ID_dict = {'ego':4500, 'ego1':120, 'ego2':1200, 'ego3':2700}
+
+    step_length = 6000
+    ego_ID_dict = {'ego1':120, 'ego2':1800, 'ego3':8000, 'ego4':12200, 'ego5':6200, 'ego6':10000}
+    #ego_ID_dict = {'ego3':12200}
     ego_ID_keys = ego_ID_dict.keys()
 
     init_ego_state = {}
@@ -17,22 +19,25 @@ def run():
     for egoID, index in ego_ID_dict.items():
         init_ego_state[egoID], init_ego_ref[egoID] = generate_ego_init_state('dl', index)
         mpc_controller[egoID] = MPControl(init_ego_ref[egoID])
-
+    start = time.perf_counter_ns()
     env = Env(init_ego_state)
     obs = env.obs    # 自车的状态list， 周车信息的recarray 包含x,y,v,phi
-
     n_ego_vehicles_list = {}
     mpc_action = {}
 
-    start = time.perf_counter_ns()
+
+
     for name_index in range(step_length):
+        start_step = time.perf_counter_ns()     
         for egoID in ego_ID_keys:
             n_ego_vehicles_list[egoID] = env.traffic.each_ego_vehicles_list[egoID]
             mpc_action[egoID] = mpc_controller[egoID].step(obs[0][egoID], n_ego_vehicles_list[egoID], env.traffic_light)
 
         obs, reward, done, info = env.step(mpc_action)
         ego_ID_keys = env.n_ego_dict.keys()
-        print('traffic light:',env.traffic_light)
+        end_step = time.perf_counter_ns()
+        print('step_time:', (end_step - start_step)/1e9)
+        #print('traffic light:',env.traffic_light)
 
 
     # obs, reward, done, info = env.step(np.array([steer_action[name_index], a_x_action[name_index]])) 复盘用

@@ -5,7 +5,7 @@ import numpy as np
 import math
 
 STEP_TIME = 0.1
-L, W = 4.0, 1.8
+L, W = 3.5, 1.7
 LANE_WIDTH = 3.75
 LANE_NUMBER = 3
 CROSSROAD_SIZE = 50

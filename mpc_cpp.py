@@ -40,6 +40,22 @@ def red_mpc_wrapper(u, ego_list, vehicles_xy_array, future_ref_array, Q, R, P):
 #     grad = grad[:,slice(1,horizon*2,2)]
 #     return grad
 
+
+
+def red_mpc_constraints_jac_wrapper(u, ego_list, vehicles_xy_array, safe_dist):
+    u = np.stack((np.zeros(horizon), np.array(u)), axis = 1)
+    u = u.flatten()
+    grad = mpc_constraints_jac(u, ego_list, vehicles_xy_array, safe_dist)[1]
+    grad = grad.reshape(-1, horizon * 2)
+    grad = grad[:,slice(1,horizon*2,2)]
+    return grad
+
+def red_mpc_constraints_wrapper(u, ego_list, vehicles_xy_array, safe_dist):
+    u = np.stack((np.zeros(horizon), np.array(u)), axis = 1)
+    u = u.flatten()
+    g = mpc_constraints(u, ego_list, vehicles_xy_array, safe_dist)
+    return g
+
 def red_mpc_alpha_constraints_jac_wrapper(u, ego_list):
     u = np.stack((np.zeros(horizon), np.array(u)), axis = 1)
     u = u.flatten()

@@ -14,7 +14,7 @@ class MPControl():
         self.red_bounds = [(-6.1, 0)] * horizon
         # self.result_array = np.zeros((step_length,10+horizon*5 + 1))
 
-        self.Q = np.array([10, 10, 0., 0., 0])
+        self.Q = np.array([30, 30, 0.1, 0., 0])
         self.R = np.array([0.5, 0.1])
         #self.P = np.array([0.5*2*10])
         self.P = np.array([0])
@@ -60,66 +60,70 @@ class MPControl():
             
             
         if (traffic_light == 0) or ego_list[4] > -25:
-            print('现在是绿灯')
-            if ego_list[0] < 0.2:
-                mpc_action = [0, (2 - ego_list[0])**2/12] * horizon
-                mpc_signal = 4
-            else:
-                print('自车状态',ego_list)
-                result_list = []
-                result_index_list = []
-                valueError_list = []
-                for i in range(self.routes_num -1 ):
-                    future_ref_array = np.array(multi_future_ref_tuple_list[i])
-                    print(future_ref_array[0,:])
-                    try:
-                        start = time.time()
-                        results = minimize(
-                                            lambda u: mpc_cpp.mpc_wrapper(u, ego_list, vehicles_xy_array, future_ref_array, self.Q, self.R, self.P),
-                                            jac = True,
-                                            x0 = self.tem_action_array[i,:].flatten(),
-                                            method = 'SLSQP',
-                                            bounds = self.bounds,
-                                            constraints = [ineq_cons, ineq_cons_alpha],
-                                            #constraints = ineq_cons_alpha,
-                                            #constraints = ineq_cons,
-                                            options={'disp': False,
-                                                    'maxiter': 1000,
-                                                    'ftol' : 1e-4} 
-                                            )
-                        end = time.time()
-                        #print("time:", end - start)
-                        if results.success:
-                            result_list.append(results)
-                            result_index_list.append(i)
-                            self.tem_action_array[i,:] = np.concatenate((results.x[2:],results.x[-2:]),axis =0)
-                            print(f'results.fun[{i}]',results.fun)
-                        else:
-                            print(f'[{i}] fail')
-                    except ValueError:
-                        valueError_list.append(i)
-                        #print('ValueError')
+            #print('现在是绿灯')
+            # if ego_list[0] < 1:
+            #     mpc_action = [0, (2 - ego_list[0])**2/15] * horizon
+            #     mpc_signal = 4
+            # else:
+            #print('自车状态',ego_list)
+            result_list = []
+            result_index_list = []
+            valueError_list = []
+            for i in range(self.routes_num ):
+                future_ref_array = np.array(multi_future_ref_tuple_list[i])
+                #print(future_ref_array[0,:])
+                try:
+                    start = time.time()
+                    results = minimize(
+                                        lambda u: mpc_cpp.mpc_wrapper(u, ego_list, vehicles_xy_array, future_ref_array, self.Q, self.R, self.P),
+                                        jac = True,
+                                        x0 = self.tem_action_array[i,:].flatten(),
+                                        method = 'SLSQP',
+                                        bounds = self.bounds,
+                                        constraints = [ineq_cons, ineq_cons_alpha],
+                                        #constraints = ineq_cons_alpha,
+                                        #constraints = ineq_cons,
+                                        options={'disp': False,
+                                                'maxiter': 100,
+                                                'ftol' : 1e-4} 
+                                        )
+                    end = time.time()
+                    #print("time:", end - start)
+                    if results.success:
+                        result_list.append(results)
+                        result_index_list.append(i)
+                        self.tem_action_array[i,:] = np.concatenate((results.x[2:],results.x[-2:]),axis =0)
+                        #print(f'results.fun[{i}]',results.fun)
+                    else:
+                        print(f'[{i}] fail')
+                except ValueError:
+                    valueError_list.append(i)
+                    #print('ValueError')
 
-                if not result_list and not valueError_list:
-                    print('fail')
-                    mpc_action = [0.] * horizon * 2
-                    if ego_list[0] > 1:
-                        mpc_action[0] = 0
-                        mpc_action[1] = -6
-                    future_ref_array = np.array(multi_future_ref_tuple_list[0])
-                elif valueError_list:
-                    mpc_action = self.tem_action_array[valueError_list[0],:]
-                    future_ref_array = np.array(multi_future_ref_tuple_list[valueError_list[0]])
-                else:
-                    min_index = np.argmin([result.fun for result in result_list])
-                    mpc_action = result_list[min_index].x
-                    #print("choosed ref index :",result_list[min_index])
-                    ref_best_index = result_index_list[min_index]
-                    mpc_signal = ref_best_index           
-                    future_ref_array = np.array(multi_future_ref_tuple_list[ref_best_index])
+            if not result_list and not valueError_list:
+                print('fail')
+                mpc_action = [0.] * horizon * 2
+                mpc_action[0] = 0
+                mpc_action[1] = -6
+                future_ref_array = np.array(multi_future_ref_tuple_list[0])
+            elif valueError_list:
+                mpc_action = self.tem_action_array[valueError_list[0],:]
+                future_ref_array = np.array(multi_future_ref_tuple_list[valueError_list[0]])
+            else:
+                min_index = np.argmin([result.fun for result in result_list])
+                mpc_action = result_list[min_index].x
+                #print("choosed ref index :",result_list[min_index])
+                ref_best_index = result_index_list[min_index]
+                mpc_signal = ref_best_index           
+                future_ref_array = np.array(multi_future_ref_tuple_list[ref_best_index])
         else:
+            ##### 红灯模式########################################
             mpc_signal = 5
             future_ref_array = np.array(multi_future_ref_tuple_list[3])
+            red_ineq_cons = {'type': 'ineq',
+                'fun' : lambda u: mpc_cpp.red_mpc_constraints_wrapper(u, ego_list, vehicles_xy_array, safe_dist + 2),
+                'jac': lambda u: mpc_cpp.red_mpc_constraints_jac_wrapper(u, ego_list, vehicles_xy_array, safe_dist + 2)
+            }
 
             red_ineq_cons_alpha = {'type': 'ineq',
                 'fun' : lambda u: mpc_cpp.red_mpc_alpha_constraints_wrapper(u, ego_list),
@@ -131,13 +135,17 @@ class MPControl():
                     x0 = [0] * horizon,
                     method = 'SLSQP',
                     bounds = self.red_bounds,
-                    constraints = [red_ineq_cons_alpha],
+                    constraints = [red_ineq_cons, red_ineq_cons_alpha],
                     options={'disp': False,
-                            'maxiter': 1000,
+                            'maxiter': 100,
                             'ftol' : 1e-4} 
                     )
             result_a_x = results.x
+            if not results.success:
+                result_a_x[0] = -6
             mpc_action = np.stack((np.zeros(horizon), np.array(result_a_x)), axis = 1).flatten()
+        # if np.abs(ego_list[3]) > 26 or np.abs(ego_list[4]) > 26:
+        #     mpc_action[0] = 0
         return mpc_action[:2]
 
 

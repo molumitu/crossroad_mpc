@@ -41,9 +41,9 @@
 -->
 
 <routes xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/routes_file.xsd">
-    <vType id="car_1" length="4.0" minGap="9.50" maxSpeed="8.00" speedFactor="normc(1.00,0.00)" vClass="passenger" impatience="0.00" guiShape="passenger" width="1.60" color="24,0,255" maxSpeedLat="1.00" latAlignment="center" minGapLat="0.10" laneChangeModel="SL2015" carFollowModel="Krauss" accel="2.6" decel="7" emergencyDecel="7" apparentDecel="7" sigma="0.5" tau="1"/>
-    <vType id="car_2" length="4.0" minGap="9.50" maxSpeed="8.00" speedFactor="normc(1.00,0.00)" vClass="passenger" impatience="0.00" guiShape="passenger" width="1.78" color="62,62,62,235" maxSpeedLat="1.00" latAlignment="center" minGapLat="0.10" laneChangeModel="SL2015" carFollowModel="Krauss" accel="2.6" decel="7" emergencyDecel="7" apparentDecel="7" sigma="0.5" tau="1"/>
-    <vType id="car_3" length="4.0" minGap="9.50" maxSpeed="8.00" speedFactor="normc(1.00,0.00)" vClass="passenger" impatience="0.00" guiShape="passenger" width="1.78" color="255,255,255,186" maxSpeedLat="1.00" latAlignment="center" minGapLat="0.10" laneChangeModel="SL2015" carFollowModel="Krauss" accel="2.6" decel="7" emergencyDecel="7" apparentDecel="7" sigma="0.5" tau="1"/>
+    <vType id="car_1" length="3.5" minGap="5.50" maxSpeed="7.00" speedFactor="normc(1.00,0.00)" vClass="passenger" impatience="0.00" guiShape="passenger" width="1.60" color="24,0,255" maxSpeedLat="1.00" latAlignment="center" minGapLat="0.10" laneChangeModel="SL2015" carFollowModel="Krauss" accel="2.6" decel="7" emergencyDecel="7" apparentDecel="7" sigma="0.5" tau="1"/>
+    <vType id="car_2" length="3.5" minGap="5.50" maxSpeed="7.00" speedFactor="normc(1.00,0.00)" vClass="passenger" impatience="0.00" guiShape="passenger" width="1.78" color="62,62,62,235" maxSpeedLat="1.00" latAlignment="center" minGapLat="0.10" laneChangeModel="SL2015" carFollowModel="Krauss" accel="2.6" decel="7" emergencyDecel="7" apparentDecel="7" sigma="0.5" tau="1"/>
+    <vType id="car_3" length="3.5" minGap="5.50" maxSpeed="7.00" speedFactor="normc(1.00,0.00)" vClass="passenger" impatience="0.00" guiShape="passenger" width="1.78" color="255,255,255,186" maxSpeedLat="1.00" latAlignment="center" minGapLat="0.10" laneChangeModel="SL2015" carFollowModel="Krauss" accel="2.6" decel="7" emergencyDecel="7" apparentDecel="7" sigma="0.5" tau="1"/>
     <vType id="self_car" length="4.0" maxSpeed="9.00" guiShape="passenger/wagon" width="1.80" color="magenta" accel="3.5" decel="7" sigma="1.0"/>
     <route edges="a1toa2 a2toa3 a3toa4 a4toa1" color="yellow" id="circle"/> 
     <route edges="1o 4i" color="yellow" id="dl"/>
@@ -59,16 +59,16 @@
     <route edges="3o 4i" color="yellow" id="ul"/>
     <route edges="3o 2i" color="yellow" id="ur"/>
     <vehicle id="collector" type="car_1" depart="0.00" route="circle"/>
-    <flow id="carflow_1.1" type="car_1" begin="0.00" departLane="best" departPos="base" departSpeed="6" from="1o" to="4i" vehsPerHour="40.00"/>
-    <flow id="carflow_1.2" type="car_1" begin="0.00" departLane="best" departPos="random" departSpeed="6" from="2o" to="1i" vehsPerHour="60.00"/>
-    <flow id="carflow_1.3" type="car_1" begin="0.00" departLane="best" departPos="random" departSpeed="6" from="3o" to="2i" vehsPerHour="60.00"/>
-    <flow id="carflow_1.4" type="car_1" begin="0.00" departLane="best" departPos="random" departSpeed="6" from="4o" to="3i" vehsPerHour="60.00"/>
-    <flow id="carflow_2.1" type="car_2" begin="0.00" departLane="best" departPos="random" departSpeed="6" from="1o" to="3i" vehsPerHour="60.00"/>
-    <flow id="carflow_2.2" type="car_2" begin="0.00" departLane="best" departPos="random" departSpeed="6" from="2o" to="4i" vehsPerHour="60.00"/>
-    <flow id="carflow_2.3" type="car_2" begin="0.00" departLane="best" departPos="base" departSpeed="6" from="3o" to="1i" vehsPerHour="6.00"/>
-    <flow id="carflow_2.4" type="car_2" begin="0.00" departLane="best" departPos="random" departSpeed="random" from="4o" to="2i" vehsPerHour="60.00"/>
-    <flow id="carflow_3.1" type="car_3" begin="0.00" departLane="best" departPos="random" departSpeed="random" from="1o" to="2i" vehsPerHour="60.00"/>
-    <flow id="carflow_3.2" type="car_3" begin="0.00" departLane="best" departPos="random" departSpeed="random" from="2o" to="3i" vehsPerHour="60.00"/>
-    <flow id="carflow_3.3" type="car_3" begin="0.00" departLane="best" departPos="random" departSpeed="random" from="3o" to="4i" vehsPerHour="20.00"/>
-    <flow id="carflow_3.4" type="car_3" begin="0.00" departLane="best" departPos="random" departSpeed="random" from="4o" to="1i" vehsPerHour="60.00"/>
+    <flow id="carflow_1.1" type="car_1" begin="0.00" departLane="best" departPos="base" departSpeed="6.0" from="1o" to="4i" vehsPerHour="400.00"/>
+    <flow id="carflow_1.2" type="car_1" begin="0.00" departLane="best" departPos="random" departSpeed="6.1" from="2o" to="1i" vehsPerHour="600.00"/>
+    <flow id="carflow_1.3" type="car_1" begin="0.00" departLane="best" departPos="random" departSpeed="5.6" from="3o" to="2i" vehsPerHour="600.00"/>
+    <flow id="carflow_1.4" type="car_1" begin="0.00" departLane="best" departPos="random" departSpeed="6.3" from="4o" to="3i" vehsPerHour="600.00"/>
+    <flow id="carflow_2.1" type="car_2" begin="0.00" departLane="best" departPos="random" departSpeed="5.9" from="1o" to="3i" vehsPerHour="600.00"/>
+    <flow id="carflow_2.2" type="car_2" begin="0.00" departLane="best" departPos="random" departSpeed="6.2" from="2o" to="4i" vehsPerHour="600.00"/>
+    <flow id="carflow_2.3" type="car_2" begin="0.00" departLane="best" departPos="base" departSpeed="6.5" from="3o" to="1i" vehsPerHour="60.00"/>
+    <flow id="carflow_2.4" type="car_2" begin="0.00" departLane="best" departPos="random" departSpeed="random" from="4o" to="2i" vehsPerHour="600.00"/>
+    <flow id="carflow_3.1" type="car_3" begin="0.00" departLane="best" departPos="random" departSpeed="random" from="1o" to="2i" vehsPerHour="600.00"/>
+    <flow id="carflow_3.2" type="car_3" begin="0.00" departLane="best" departPos="random" departSpeed="random" from="2o" to="3i" vehsPerHour="600.00"/>
+    <flow id="carflow_3.3" type="car_3" begin="0.00" departLane="best" departPos="random" departSpeed="random" from="3o" to="4i" vehsPerHour="200.00"/>
+    <flow id="carflow_3.4" type="car_3" begin="0.00" departLane="best" departPos="random" departSpeed="random" from="4o" to="1i" vehsPerHour="600.00"/>
 </routes>

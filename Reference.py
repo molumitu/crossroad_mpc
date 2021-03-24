@@ -19,7 +19,7 @@ class ReferencePath(object):
         sl = 40  # straight line length, equal to extensions
         meter_pointnum_ratio = 100 
         end_points_num = int(2.5*sl * meter_pointnum_ratio) + 1
-        arc_points_num = int((4222 +1) * 1.5) 
+        arc_points_num = int((4222 +1) * 1.1) 
         # the length of the arc is 42.2152m
         R = CROSSROAD_SIZE/2 + LANE_WIDTH/2
         if task == 'left':
@@ -57,14 +57,14 @@ class ReferencePath(object):
                 self.path_len_list.append(len(total_x))
         
 
-            path_red_points_nums = int((sl- 20) * meter_pointnum_ratio) + 1
+            path_red_points_nums = int((sl- 12) * meter_pointnum_ratio) + 1
             path_red_line_x = LANE_WIDTH/2 * np.ones(shape=(path_red_points_nums,))
-            path_red_line_y = np.linspace(-CROSSROAD_SIZE/2 - sl, -CROSSROAD_SIZE/2 - 20 , path_red_points_nums)
+            path_red_line_y = np.linspace(-CROSSROAD_SIZE/2 - sl, -CROSSROAD_SIZE/2 - 12 , path_red_points_nums)
 
             a_brake = -2
             v0 = 6
             t = np.linspace(0,3,30*60)[1:]
-            s_y = v0 * t + 1/2*a_brake*t**2 - CROSSROAD_SIZE/2 -20
+            s_y = v0 * t + 1/2*a_brake*t**2 - CROSSROAD_SIZE/2 -12
             s_x = LANE_WIDTH/2 * np.ones(shape=(len(t),))
 
             total_len = path_red_points_nums + len(t)
