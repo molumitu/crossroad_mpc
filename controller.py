@@ -27,13 +27,13 @@ class MPControl():
 
         # 0：left 1:straight 2:right
         # vehicles_array : N*horizon*4   N=8
-        n = len(n_ego_vehicles_list)      # 给python function 用的
+        n = len(n_ego_vehicles_list)
         vehicles_array = np.zeros((n,horizon,4))
         for i, veh in enumerate(n_ego_vehicles_list):
             task = route_to_task(veh)
             vehicles_array[i] = veh_predict(veh, horizon)
         vehicles_xy_array = vehicles_array[:,:,:2].copy()
-        safe_dist = 5
+        safe_dist = 5 + ego_list[0] / 8
         ineq_cons = {'type': 'ineq',
             'fun' : lambda u: mpc_cpp.mpc_constraints(u, ego_list, vehicles_xy_array, safe_dist),
             'jac': lambda u: mpc_cpp.mpc_constraints_wrapper(u, ego_list, vehicles_xy_array, safe_dist)
