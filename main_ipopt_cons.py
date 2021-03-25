@@ -1,4 +1,3 @@
-from solver import create_solver
 from scipy.optimize.zeros import VALUEERR
 from Reference import ReferencePath
 import matplotlib.pyplot as plt
@@ -11,7 +10,7 @@ from mpc_to_matlab import mpc_cost_function  # 只是把python类变成了函数
 
 
 from solver import create_solver
-from solver_with_constraints import create_solver_with_cons
+from solver_with_constraints_geqiang_model import create_solver_with_cons
 
 
 def route_to_task(veh):
@@ -58,7 +57,7 @@ def set_ego_init_state(ref):
     x, y, phi = ref.indexs2points(random_index, path_index = 0)
     steer = 0.
     a_x = 0.
-    v = 1 
+    v = 3 
     if ref.task == 'left':
         routeID = 'dl'
     elif ref.task == 'straight':

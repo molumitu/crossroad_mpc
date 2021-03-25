@@ -1,12 +1,23 @@
 import numpy as np
 import casadi as ca
 
+solver_cache = dict()
 
-def create_solver_with_cons_single_solver(Horizon, STEP_TIME):
+####预先创建好了5个solver，分别可以处理0~5辆车
+
+def create_solver_with_cons(Horizon, STEP_TIME, n_vehicles):
+    key = Horizon, STEP_TIME, n_vehicles
+    if key in solver_cache:
+        return solver_cache[key]
+    solver = _create_solver_with_cons(*key)
+    solver_cache[key] = solver
+    return solver
+
+def _create_solver_with_cons(Horizon, STEP_TIME, n_vehicles):
     n_states = 8
     n_controls = 2
     safety_dist = 4.5
-    n_vehicles = 8
+    n_vehicles = n_vehicles
     C_f = -96995.9
     C_r = -85943.6
     a = 1.4
@@ -51,10 +62,13 @@ def create_solver_with_cons_single_solver(Horizon, STEP_TIME):
 
         steer_input_c, a_x_input_c = U_c[0], U_c[1]
 
+
         freq = int(STEP_TIME / 0.01)
         tau = STEP_TIME / freq
 
         for j in range(freq):
+            steer_c = (1 - tau/T_LPF) * steer_c + tau/T_LPF * steer_input_c
+            a_x_c = (1 - tau/(T_LPF/2)) * a_x_c + tau/(T_LPF/2) * a_x_input_c
             signed_eps_c = ca.sign(v_x_c) * eps
 
             F_zf = b * mass * gravity/(a+b) - mass * a_x_c * h / (a+b)
@@ -79,8 +93,8 @@ def create_solver_with_cons_single_solver(Horizon, STEP_TIME):
             x_next = x_c + tau * (v_x_c * ca.cos(phi_c) - v_y_c * ca.sin(phi_c))
             y_next = y_c + tau * (v_x_c * ca.sin(phi_c) + v_y_c * ca.cos(phi_c))
             phi_next = (phi_c + tau * r_c)
-            steer_next = (1 - tau/T_LPF) * steer_c + tau/T_LPF * steer_input_c
-            a_x_next = (1 - tau/T_LPF) * a_x_c + tau/T_LPF * a_x_input_c
+            steer_next = steer_c
+            a_x_next = a_x_c
 
             v_x_c = v_x_next
             v_y_c = v_y_next
@@ -96,8 +110,7 @@ def create_solver_with_cons_single_solver(Horizon, STEP_TIME):
         G[i, 3] = alpha_r * C_r + max_F_yr
         G[i, 4] = max_F_yr - alpha_r * C_r
         for k in range(n_vehicles):
-            G[i, k+5] = ca.sqrt((Vehs_x[k] - x_c)**2 +
-                                (Vehs_y[k] - y_c)**2) - safety_dist
+            G[i, k+5] = ca.sqrt((Vehs_x[k] - x_c)**2 +(Vehs_y[k] - y_c)**2) - safety_dist
 
         x_ref = Ref_x[i]
         y_ref = Ref_y[i]
@@ -109,7 +122,11 @@ def create_solver_with_cons_single_solver(Horizon, STEP_TIME):
 
 
     nlp_prob = {'f': obj, 'x': ca.reshape(U, -1, 1), 'g': ca.reshape(G, -1, 1), 'p': P}
-    opts_setting = {'ipopt.max_iter': 1000, 'ipopt.print_level': 0, 'print_time': 0,
-                'ipopt.acceptable_tol': 1e-6, 'ipopt.acceptable_obj_change_tol': 1e-6}
+    opts_setting = {'ipopt.max_iter': 100, 'ipopt.print_level': 0, 'print_time': 0,\
+                # 'ipopt.acceptable_tol': 1e-4, \
+                'ipopt.acceptable_obj_change_tol': 1e-4}
     solver = ca.nlpsol('solver', 'ipopt', nlp_prob, opts_setting)
     return solver
+
+for n_vehicles in range(6):
+    create_solver_with_cons(20, 0.1, n_vehicles=n_vehicles)

@@ -38,7 +38,7 @@ class Traffic(object):
         self.collision_flag = False
         self.n_ego_collision_flag = {}
         self.collision_ego_id = None
-        self.v_light = 0
+        self.v_light = 2
 
         self.first_add = True
         seed = 5
@@ -56,7 +56,7 @@ class Traffic(object):
                  # "--quit-on-end",
                  "--no-warnings",
                  "--no-step-log",
-                 "--collision.action", "remove"
+                 #"--collision.action", "remove"
                  '--seed', str(int(seed))
                  ], port=port, numRetries=5)  # '--seed', str(int(seed))
         except FatalTraCIError:
@@ -94,7 +94,7 @@ class Traffic(object):
         end = time.time()
         print("Sumo startup time: ", end - start)
 
-        while traci.simulation.getTime() < 39:
+        while traci.simulation.getTime() < 38.5:
             if traci.simulation.getTime() < 80:
                 traci.trafficlight.setPhase('0', 0)
             else:
@@ -228,7 +228,11 @@ class Traffic(object):
 
     def sim_step(self):
         self.sim_time += STEP_TIME
-        traci.trafficlight.setPhase('0', self.v_light)
+        # traci.trafficlight.setPhase('0', self.v_light)
+        if self.sim_time%60 < 30:
+            traci.trafficlight.setPhase('0', 2)
+        else:
+            traci.trafficlight.setPhase('0', 0)
         traci.simulationStep()
         self._get_vehicles()
         self._get_traffic_light()
