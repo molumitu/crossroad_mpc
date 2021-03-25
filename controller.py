@@ -1,3 +1,4 @@
+from controller_params import MPC_Param
 from scipy.optimize.zeros import VALUEERR
 import numpy as np
 from scipy.optimize import minimize
@@ -7,17 +8,32 @@ import mpc_cpp
 import time
 
 class MPControl():
-    def __init__(self, ref):
+    def __init__(self, ref, mpc_params:MPC_Param):
+
         self.ref = ref
-        self.routes_num = 3
-        self.bounds = [(-0.28, 0.28), (-6.1, 2.8)] * horizon
-        self.red_bounds = [(-6.1, 0)] * horizon
+
+        
+        # self.routes_num = 3
+        # self.bounds = [(-0.28, 0.28), (-6.1, 2.8)] * horizon
+        # self.red_bounds = [(-6.1, 0)] * horizon
+        # # self.result_array = np.zeros((step_length,10+horizon*5 + 1))
+
+        # self.Q = np.array([30, 30, 0.1, 0., 0])
+        # self.R = np.array([0.5, 0.1])
+        # #self.P = np.array([0.5*2*10])
+        # self.P = np.array([0])
+
+        self.routes_num = mpc_params.routes_num
+        self.bounds = mpc_params.bounds
+        self.red_bounds = mpc_params.red_bounds
         # self.result_array = np.zeros((step_length,10+horizon*5 + 1))
 
-        self.Q = np.array([30, 30, 0.1, 0., 0])
-        self.R = np.array([0.5, 0.1])
+        self.Q = mpc_params.Q
+        self.R = mpc_params.R
         #self.P = np.array([0.5*2*10])
-        self.P = np.array([0])
+        self.P = mpc_params.P
+
+
         self.tem_action_array = np.zeros((self.routes_num, horizon * 2))
 
     def step(self, ego_list, n_ego_vehicles_list, traffic_light):

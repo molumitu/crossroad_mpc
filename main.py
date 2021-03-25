@@ -1,4 +1,5 @@
 from controller import MPControl
+from controller_params import MPC_Param
 from Env import Env
 import time
 from init_ego_state import generate_ego_init_state
@@ -7,8 +8,8 @@ from init_ego_state import generate_ego_init_state
 
 def run():
 
-    step_length = 6000
-    ego_ID_dict = {'ego1':120, 'ego2':1800, 'ego3':8000, 'ego4':12200, 'ego5':6200, 'ego6':10000}
+    step_length = 6000  #step_time是0.1s
+    ego_ID_dict = {'ego1':120, 'ego2':1800, 'ego3':8000, 'ego4':12200, 'ego5':7200, 'ego6':10000}
     #ego_ID_dict = {'ego3':12200}
     ego_ID_keys = ego_ID_dict.keys()
 
@@ -16,9 +17,11 @@ def run():
     init_ego_ref = {}
     mpc_controller = {}
 
+    mpc_params = MPC_Param()   #这里暂时均采用默认参数
+
     for egoID, index in ego_ID_dict.items():
         init_ego_state[egoID], init_ego_ref[egoID] = generate_ego_init_state('dl', index)
-        mpc_controller[egoID] = MPControl(init_ego_ref[egoID])
+        mpc_controller[egoID] = MPControl(init_ego_ref[egoID], mpc_params)
     start = time.perf_counter_ns()
     env = Env(init_ego_state)
     obs = env.obs    # 自车的状态list， 周车信息的recarray 包含x,y,v,phi
