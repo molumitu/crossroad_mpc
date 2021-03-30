@@ -13,6 +13,9 @@ LANE_NUMBER = 3
 CROSSROAD_SIZE = 50
 horizon = 20
 
+
+
+
 def judge_feasible(orig_x, orig_y, task):  # map dependant
     def is_in_straight_before1(orig_x, orig_y):
         return 0 < orig_x < LANE_WIDTH and orig_y <= -CROSSROAD_SIZE / 2
@@ -174,6 +177,9 @@ def _convert_sumo_coord_to_car_coord(x_in_sumo_coord, y_in_sumo_coord, a_in_sumo
 
 def deal_with_phi(phi):
     return np.mod(phi+180,2*180)-180.
+
+def deal_with_phi_rad(phi):
+    return np.mod(phi+np.pi,2*np.pi)-np.pi
 
 if __name__ == '__main__':
     pass

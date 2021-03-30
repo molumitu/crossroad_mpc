@@ -27,7 +27,9 @@ class Traffic(object):
 
     def __init__(self):
         self.step_time = str(STEP_TIME)
-        seed = 73555608
+        #seed = 73555608
+        #seed = 7355560
+        seed = 5
         import time
         start = time.time()
         port = sumolib.miscutils.getFreeSocketPort()
@@ -93,10 +95,17 @@ class Traffic(object):
         self.n_ego_collision_flag = {}
         self.collision_ego_id = None
 
+
+
         self.traffic_light = 0        
         # add ego and move ego to the given position and remove conflict cars
+        init_n_ego_dict  = init_n_ego_dict.copy()
+        # init_n_ego_dict_not_control = {}
+        # init_n_ego_dict_not_control['ego13'] = dict(steer=0, a_x = 0, v_x=8., v_y=0, r=0, x=1.875 + 3.75, y=-75, phi=90, l=4.0, w=1.8, routeID='du')
+        # init_n_ego_dict_not_control['ego14'] = dict(steer=0, a_x = 0, v_x=8., v_y=0, r=0, x=1.875+ 3.75 * 2, y=-85, phi=90, l=4.0, w=1.8, routeID='dr')
+        # self.init_n_ego_dict_not_control = init_n_ego_dict_not_control
+        # self.add_ego_vehicles({**init_n_ego_dict, **init_n_ego_dict_not_control})
         self.add_ego_vehicles(init_n_ego_dict)
-
 
 
         self._update_traffic_light()
@@ -175,31 +184,55 @@ class Traffic(object):
                     #         and (y > -CROSSROAD_SIZE/2) and (x < CROSSROAD_SIZE/2)\
                     #         ))\
                     #         and x < (x_ego + 15)  and y > (y_ego - 15):
-                    if abs(y_ego) > 26:
+                    if abs(y_ego) > 25:
                         if abs(x_ego - x) < 3 and y > y_ego and y - y_ego < 15:
                             if veh not in n_ego_dict_keys:
                                 veh_set.add(veh)    
                             self.each_ego_vehicles[egoID].append(dict(veh_ID=veh, x=x, y=y, v=v, phi=a, l=length, w=width, route=route))
                             self.each_ego_vehicles_list[egoID].append([x, y, v, a, route])
-                    elif abs(x_ego) > 26:
+                    elif abs(x_ego) > 25:
                         if abs(y_ego - y) < 3 and x < x_ego and x_ego - x < 15:
                             if veh not in n_ego_dict_keys:
                                 veh_set.add(veh)    
                             self.each_ego_vehicles[egoID].append(dict(veh_ID=veh, x=x, y=y, v=v, phi=a, l=length, w=width, route=route))
                             self.each_ego_vehicles_list[egoID].append([x, y, v, a, route])
                     else:
-                        if (sqrt((x_ego-x) ** 2 + (y_ego-y) ** 2) < 15) and \
-                            x < 3.75 and y > y_ego:
-                            #  (((route[1]=='1i' and route[0] != '4o' and (y > -CROSSROAD_SIZE/2 + 15) and (x < CROSSROAD_SIZE/2 + 2))\
-                            # or (route[1]=='4i'))and x < (x_ego)  and y > (y_ego)):
-                            if veh not in n_ego_dict_keys:
-                                veh_set.add(veh)    
-                            self.each_ego_vehicles[egoID].append(dict(veh_ID=veh, x=x, y=y, v=v, phi=a, l=length, w=width, route=route))
-                            self.each_ego_vehicles_list[egoID].append([x, y, v, a, route])
+                        if route_ego[1] == '4i':
+                            if (sqrt((x_ego-x) ** 2 + (y_ego-y) ** 2) < 30) and \
+                                x < x_ego + 3 and y > y_ego and x > -25:
+                                #  (((route[1]=='1i' and route[0] != '4o' and (y > -CROSSROAD_SIZE/2 + 15) and (x < CROSSROAD_SIZE/2 + 2))\
+                                # or (route[1]=='4i'))and x < (x_ego)  and y > (y_ego)):
+                                if veh not in n_ego_dict_keys:
+                                    veh_set.add(veh)    
+                                self.each_ego_vehicles[egoID].append(dict(veh_ID=veh, x=x, y=y, v=v, phi=a, l=length, w=width, route=route))
+                                self.each_ego_vehicles_list[egoID].append([x, y, v, a, route])
+                        elif route_ego[1] == '3i':
+                            pass
+                            if (sqrt((x_ego-x) ** 2 + (y_ego-y) ** 2) < 30) and \
+                                y > y_ego and (x > x_ego -5 and x < x_ego + 15):
+                                #  (((route[1]=='1i' and route[0] != '4o' and (y > -CROSSROAD_SIZE/2 + 15) and (x < CROSSROAD_SIZE/2 + 2))\
+                                # or (route[1]=='4i'))and x < (x_ego)  and y > (y_ego)):
+                                if veh not in n_ego_dict_keys:
+                                    veh_set.add(veh)    
+                                self.each_ego_vehicles[egoID].append(dict(veh_ID=veh, x=x, y=y, v=v, phi=a, l=length, w=width, route=route))
+                                self.each_ego_vehicles_list[egoID].append([x, y, v, a, route])
+                        elif route_ego[1] == '2i':
+                            pass
+                            # if (sqrt((x_ego-x) ** 2 + (y_ego-y) ** 2) < 20) and \
+                            #     x > x_ego - 3 and y > y_ego - 3:
+                            #     #  (((route[1]=='1i' and route[0] != '4o' and (y > -CROSSROAD_SIZE/2 + 15) and (x < CROSSROAD_SIZE/2 + 2))\
+                            #     # or (route[1]=='4i'))and x < (x_ego)  and y > (y_ego)):
+                            #     if veh not in n_ego_dict_keys:
+                            #         veh_set.add(veh)    
+                            #     self.each_ego_vehicles[egoID].append(dict(veh_ID=veh, x=x, y=y, v=v, phi=a, l=length, w=width, route=route))
+                            #     self.each_ego_vehicles_list[egoID].append([x, y, v, a, route])
+
         for veh in veh_set:
             traci.vehicle.setColor(str(veh),(255,0,0))
         for veh in n_ego_dict_keys:
             traci.vehicle.setColor(str(veh),(255,0,255))
+        # for veh in self.init_n_ego_dict_not_control.keys():
+        #     traci.vehicle.setColor(str(veh),(255,0,255))
 
     @property
     def traffic_light(self):
@@ -211,14 +244,14 @@ class Traffic(object):
 
     def _update_traffic_light(self):
         sim_time  = self.sim_time % 60
-        if sim_time < 25:
-            self.traffic_light = 2  #下方来车绿色
+        if sim_time < 5:
+            self.traffic_light = 1  #下方来车绿色
         elif sim_time < 30:
+            self.traffic_light = 2
+        elif sim_time < 35:
             self.traffic_light = 3
-        elif sim_time < 55:
-            self.traffic_light = 0
         else:
-            self.traffic_light = 1
+            self.traffic_light = 0
 # 2301
 # 0123
 

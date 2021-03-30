@@ -10,19 +10,24 @@ class ReferencePath(object):
     def __init__(self, task):
         self.exp_v = 6.
         self.task = task
+        self.routes_num = self.cal_route_num()
         self.path_list = []
         self.path_len_list = []
         self._construct_ref_path(self.task)
 
+    def cal_route_num(self):
+        task_to_route_num_dict = {'left':3, 'straight':2, 'right':1}
+        return task_to_route_num_dict[self.task]
 
     def _construct_ref_path(self, task):
-        sl = 40  # straight line length, equal to extensions
-        meter_pointnum_ratio = 100 
-        end_points_num = int(2.5*sl * meter_pointnum_ratio) + 1
-        arc_points_num = int((4222 +1) * 1.1) 
-        # the length of the arc is 42.2152m
-        R = CROSSROAD_SIZE/2 + LANE_WIDTH/2
+
         if task == 'left':
+            sl = 40  # straight line length, equal to extensions
+            meter_pointnum_ratio = 100 
+            end_points_num = int(2.5*sl * meter_pointnum_ratio) + 1
+            arc_points_num = int((4222 +1) * 1.1) 
+            # the length of the arc is 42.2152m
+            R = CROSSROAD_SIZE/2 + LANE_WIDTH/2
             end_offsets = [LANE_WIDTH*(i+0.5) for i in range(LANE_NUMBER)]
             start_offsets = [LANE_WIDTH*0.5]
             for end_offset in end_offsets:
@@ -56,6 +61,9 @@ class ReferencePath(object):
                 self.path_list.append(planned_trj)
                 self.path_len_list.append(len(total_x))
         
+        
+
+        
 
             path_red_points_nums = int((sl- 12) * meter_pointnum_ratio) + 1
             path_red_line_x = LANE_WIDTH/2 * np.ones(shape=(path_red_points_nums,))
@@ -76,6 +84,153 @@ class ReferencePath(object):
             path_red = path_red_x, path_red_y, path_red_phi
             self.path_list.append(path_red)
             self.path_len_list.append(total_len)
+
+        elif task == 'straight':
+            sl = 75  # straight line length, equal to extensions
+            meter_pointnum_ratio = 100 
+            end_points_num = int(sl * meter_pointnum_ratio) + 1
+
+
+
+            #---------start_straight_line---------------------------------------------------------
+            start_points_num = int(sl * meter_pointnum_ratio) + 1
+            start_straight_line_x = LANE_WIDTH * 1.5 * np.ones(shape=(start_points_num,))[:-1]
+            start_straight_line_y = np.linspace(-CROSSROAD_SIZE/2 - sl, -CROSSROAD_SIZE/2 , start_points_num)[:-1]
+            
+            #---------connected_arc_line-----------------------------------------------------------
+            connect_points_num = int(CROSSROAD_SIZE * meter_pointnum_ratio) + 1
+            connect_line_x = LANE_WIDTH * 1.5 * np.ones(shape=(connect_points_num,))
+            connect_line_y = np.linspace(-CROSSROAD_SIZE/2 , CROSSROAD_SIZE/2 , connect_points_num)
+
+            #---------end_straight_line------------------------------------------------------------
+            end_straight_line_x = LANE_WIDTH * 1.5 * np.ones(shape=(end_points_num,))[1:]
+            end_straight_line_y = np.linspace(CROSSROAD_SIZE/2, CROSSROAD_SIZE/2 + sl, end_points_num)[1:]
+
+            #---------------------------------------------------------------------------------------
+
+            total_x = np.concatenate((start_straight_line_x,connect_line_x,end_straight_line_x), axis=0)
+            total_y = np.concatenate((start_straight_line_y,connect_line_y,end_straight_line_y), axis=0)
+            
+            xs_1, ys_1 = total_x[:-1], total_y[:-1]  #除去最后一个点之后，剩余的部分
+            xs_2, ys_2 = total_x[1:], total_y[1:]    #除去第一个点之后，剩余的部分
+            phis_1 = np.arctan2(ys_2 - ys_1, xs_2 - xs_1) * 180 / np.pi
+
+            planned_trj = total_x, total_y, np.concatenate((phis_1, phis_1[-1:]), axis=0)
+        
+            self.path_list.append(planned_trj)
+            self.path_len_list.append(len(total_x))
+
+
+
+            ##################贝塞尔曲线#####################################################
+            #---------start_straight_line---------------------------------------------------------
+            start_points_num = int(sl * meter_pointnum_ratio) + 1
+            start_straight_line_x = LANE_WIDTH * 1.5 * np.ones(shape=(start_points_num,))[:-1]
+            start_straight_line_y = np.linspace(-CROSSROAD_SIZE/2 - sl, -CROSSROAD_SIZE/2 , start_points_num)[:-1]
+            
+            #---------connected_arc_line-----------------------------------------------------------
+            connect_points_num = int(CROSSROAD_SIZE * meter_pointnum_ratio) + 1
+            control_ext = 15
+            offset = 5
+            control_point1 = LANE_WIDTH * 1.5 , -CROSSROAD_SIZE/2 + offset
+            control_point2 = LANE_WIDTH * 1.5, -CROSSROAD_SIZE/2 + control_ext+ offset
+            control_point3 = LANE_WIDTH * 2.5,CROSSROAD_SIZE/2 - control_ext- offset
+            control_point4 = LANE_WIDTH * 2.5,CROSSROAD_SIZE/2- offset
+
+            node = np.asfortranarray([[control_point1[0], control_point2[0], control_point3[0], control_point4[0]],
+                                [control_point1[1], control_point2[1], control_point3[1], control_point4[1]]])
+            curve = bezier.Curve(node, degree=3)
+            s_vals = np.linspace(0, 1.0, connect_points_num)
+            trj_data = curve.evaluate_multi(s_vals)
+            connect_line_x = trj_data[0]
+            connect_line_y = trj_data[1]
+
+            #---------end_straight_line------------------------------------------------------------
+            end_straight_line_x = LANE_WIDTH * 2.5 * np.ones(shape=(end_points_num,))[1:]
+            end_straight_line_y = np.linspace(CROSSROAD_SIZE/2, CROSSROAD_SIZE/2 + sl, end_points_num)[1:]
+
+            #---------------------------------------------------------------------------------------
+
+            total_x = np.concatenate((start_straight_line_x,connect_line_x,end_straight_line_x), axis=0)
+            total_y = np.concatenate((start_straight_line_y,connect_line_y,end_straight_line_y), axis=0)
+            
+            xs_1, ys_1 = total_x[:-1], total_y[:-1]  #除去最后一个点之后，剩余的部分
+            xs_2, ys_2 = total_x[1:], total_y[1:]    #除去第一个点之后，剩余的部分
+            phis_1 = np.arctan2(ys_2 - ys_1, xs_2 - xs_1) * 180 / np.pi
+
+            planned_trj = total_x, total_y, np.concatenate((phis_1, phis_1[-1:]), axis=0)
+        
+            self.path_list.append(planned_trj)
+            self.path_len_list.append(len(total_x))
+
+
+
+        
+        
+
+        
+
+            path_red_points_nums = int((sl- 12) * meter_pointnum_ratio) + 1
+            path_red_line_x = LANE_WIDTH/2 * np.ones(shape=(path_red_points_nums,))
+            path_red_line_y = np.linspace(-CROSSROAD_SIZE/2 - sl, -CROSSROAD_SIZE/2 - 12 , path_red_points_nums)
+
+            a_brake = -2
+            v0 = 6
+            t = np.linspace(0,3,30*60)[1:]
+            s_y = v0 * t + 1/2*a_brake*t**2 - CROSSROAD_SIZE/2 -12
+            s_x = LANE_WIDTH * 1.5 * np.ones(shape=(len(t),))
+
+            total_len = path_red_points_nums + len(t)
+
+
+            path_red_phi = 90 * np.ones(shape=(total_len,))
+            path_red_x = np.concatenate((path_red_line_x, s_x))
+            path_red_y = np.concatenate((path_red_line_y, s_y))
+            path_red = path_red_x, path_red_y, path_red_phi
+            self.path_list.append(path_red)
+            self.path_len_list.append(total_len)
+        else:
+            assert task == 'right', '瞎写' 
+
+            sl = 75  # straight line length, equal to extensions
+            meter_pointnum_ratio = 100 
+            end_points_num = int(sl * meter_pointnum_ratio) + 1
+            arc_points_num = int((2454 +1) * 1.1) 
+            # the length of the arc is 24.5437m
+            R = CROSSROAD_SIZE/2 - 2.5 * LANE_WIDTH
+            end_offset = LANE_WIDTH*(-2.5)
+            start_offset = LANE_WIDTH*2.5
+
+
+
+            #---------start_straight_line---------------------------------------------------------
+            start_points_num = int((sl) * meter_pointnum_ratio) + 1
+            start_straight_line_x = LANE_WIDTH* 2.5 * np.ones(shape=(start_points_num,))[:-1]
+            start_straight_line_y = np.linspace(-CROSSROAD_SIZE/2 - sl, -CROSSROAD_SIZE/2 , start_points_num)[:-1]
+            
+            #---------connected_arc_line-----------------------------------------------------------
+            s_vals = np.linspace(0, np.pi/2, arc_points_num)
+            arc_line_x = - R * np.cos(s_vals) + CROSSROAD_SIZE/2
+            arc_line_y = R * np.sin(s_vals) - CROSSROAD_SIZE/2
+
+            #---------end_straight_line------------------------------------------------------------
+            end_straight_line_x = np.linspace(CROSSROAD_SIZE/2, CROSSROAD_SIZE/2 + sl, end_points_num,                                                     dtype=np.float32)[1:]
+            end_straight_line_y = end_offset * np.ones(shape=(end_points_num,))[1:]
+
+            #---------------------------------------------------------------------------------------
+
+            total_x = np.concatenate((start_straight_line_x,arc_line_x,end_straight_line_x), axis=0)
+            total_y = np.concatenate((start_straight_line_y,arc_line_y,end_straight_line_y), axis=0)
+            
+            xs_1, ys_1 = total_x[:-1], total_y[:-1]  #除去最后一个点之后，剩余的部分
+            xs_2, ys_2 = total_x[1:], total_y[1:]    #除去第一个点之后，剩余的部分
+            phis_1 = np.arctan2(ys_2 - ys_1, xs_2 - xs_1) * 180 / np.pi
+
+            planned_trj = total_x, total_y, np.concatenate((phis_1, phis_1[-1:]), axis=0)
+        
+            self.path_list.append(planned_trj)
+            self.path_len_list.append(len(total_x))
+
         
     def find_closest_point(self, xs, ys, path_index):  # radio用来将轨迹点稀疏化，但是不需要
         xs_array = float(xs) * np.ones_like(self.path_list[path_index][0])
@@ -115,11 +270,16 @@ class ReferencePath(object):
 
 
     def multi_future_ref_points(self, ego_xs, ego_ys, n):
-        _, future_ref_list = self.future_ref_points(ego_xs, ego_ys, n, path_index = 0)
-        _, future_ref_list_1 = self.future_ref_points(ego_xs, ego_ys, n, path_index = 1)
-        _, future_ref_list_2 = self.future_ref_points(ego_xs, ego_ys, n, path_index = 2)
-        _, future_ref_list_3 = self.future_ref_points(ego_xs, ego_ys, n, path_index = 3)
-        return [future_ref_list, future_ref_list_1, future_ref_list_2, future_ref_list_3]
+        multi_future_ref_list = []
+        for i in range(self.routes_num):
+            _, future_ref_list = self.future_ref_points(ego_xs, ego_ys, n, path_index = i)
+            multi_future_ref_list.append(future_ref_list)
+        return multi_future_ref_list
+        # _, future_ref_list = self.future_ref_points(ego_xs, ego_ys, n, path_index = 0)
+        # _, future_ref_list_1 = self.future_ref_points(ego_xs, ego_ys, n, path_index = 1)
+        # _, future_ref_list_2 = self.future_ref_points(ego_xs, ego_ys, n, path_index = 2)
+        # _, future_ref_list_3 = self.future_ref_points(ego_xs, ego_ys, n, path_index = 3)
+        # return [future_ref_list, future_ref_list_1, future_ref_list_2, future_ref_list_3]
 
 
     def indexs2points(self, index, path_index):  #根据index 得到轨迹点的 x_ref, y_ref, phi_ref
@@ -131,10 +291,12 @@ class ReferencePath(object):
 
 
 if __name__ == "__main__":
-    ref = ReferencePath('left')
+    ref = ReferencePath('straight')
     print(ref.path_len_list)
     print(ref.path_list[1][0])
-    plt.scatter(ref.path_list[1][0], ref.path_list[1][1])
+    plt.plot(ref.path_list[1][0], ref.path_list[1][1])
+    plt.xlim([4,10])
+    plt.ylim([-30,30])
     plt.show()
-    plt.axis('equal')
+
     print(ref.multi_future_ref_points(1.875, -34.856, 20)[0][0])

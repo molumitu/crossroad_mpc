@@ -14,7 +14,7 @@ def generate_ego_init_state(routeID, index):
     x, y, phi = ref.indexs2points(index, path_index=0)
     steer = 0.
     a_x = 0.
-    v = 5
+    v = 6
     ego_state = {'v_x':v,
             "v_y":0,
             'r':0,

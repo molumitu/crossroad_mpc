@@ -3,7 +3,7 @@ from scipy.optimize.zeros import VALUEERR
 import numpy as np
 from scipy.optimize import minimize
 from Env_utils import horizon
-from predict_surroundings import route_to_task, veh_predict
+from predict_surroundings import veh_predict, double_circle_transfer
 import mpc_cpp
 import time
 
@@ -11,8 +11,6 @@ class MPControl():
     def __init__(self, ref, mpc_params:MPC_Param):
 
         self.ref = ref
-
-        
         # self.routes_num = 3
         # self.bounds = [(-0.28, 0.28), (-6.1, 2.8)] * horizon
         # self.red_bounds = [(-6.1, 0)] * horizon
@@ -23,7 +21,7 @@ class MPControl():
         # #self.P = np.array([0.5*2*10])
         # self.P = np.array([0])
 
-        self.routes_num = mpc_params.routes_num
+        self.routes_num = ref.routes_num
         self.bounds = mpc_params.bounds
         self.red_bounds = mpc_params.red_bounds
         # self.result_array = np.zeros((step_length,10+horizon*5 + 1))
@@ -46,13 +44,19 @@ class MPControl():
         n = len(n_ego_vehicles_list)
         vehicles_array = np.zeros((n,horizon,4))
         for i, veh in enumerate(n_ego_vehicles_list):
-            task = route_to_task(veh)
             vehicles_array[i] = veh_predict(veh, horizon)
         vehicles_xy_array = vehicles_array[:,:,:2].copy()
-        safe_dist = 5 + ego_list[0] / 8
+        vehicles_xy_array_front, vehicles_xy_array_rear = double_circle_transfer(vehicles_array, n)
+        #########对直行车加不同的dist
+        if abs(ego_list[3]) > 25 or abs(ego_list[4]) > 25:
+            safe_dist = 0 + ego_list[0] / 6
+        else:
+            safe_dist = 2.4 + 1.5 * ego_list[0] / 6
+
+
         ineq_cons = {'type': 'ineq',
-            'fun' : lambda u: mpc_cpp.mpc_constraints(u, ego_list, vehicles_xy_array, safe_dist),
-            'jac': lambda u: mpc_cpp.mpc_constraints_wrapper(u, ego_list, vehicles_xy_array, safe_dist)
+            'fun' : lambda u: mpc_cpp.mpc_constraints(u, ego_list, vehicles_xy_array_front, vehicles_xy_array_rear, safe_dist),
+            'jac': lambda u: mpc_cpp.mpc_constraints_wrapper(u, ego_list, vehicles_xy_array_front, vehicles_xy_array_rear, safe_dist)
             }
 
         # # # only static obstacle##################################################################
@@ -75,7 +79,7 @@ class MPControl():
 
             
             
-        if (traffic_light == 0) or ego_list[4] > -25:
+        if (traffic_light == 0) or ego_list[4] > -25 or self.ref.task == 'right':
             #print('现在是绿灯')
             # if ego_list[0] < 1:
             #     mpc_action = [0, (2 - ego_list[0])**2/15] * horizon
@@ -88,7 +92,7 @@ class MPControl():
             for i in range(self.routes_num ):
                 future_ref_array = np.array(multi_future_ref_tuple_list[i])
                 #print(future_ref_array[0,:])
-                try:
+                try:  
                     start = time.time()
                     results = minimize(
                                         lambda u: mpc_cpp.mpc_wrapper(u, ego_list, vehicles_xy_array, future_ref_array, self.Q, self.R, self.P),
@@ -135,10 +139,10 @@ class MPControl():
         else:
             ##### 红灯模式########################################
             mpc_signal = 5
-            future_ref_array = np.array(multi_future_ref_tuple_list[3])
+            future_ref_array = np.array(multi_future_ref_tuple_list[-1])
             red_ineq_cons = {'type': 'ineq',
-                'fun' : lambda u: mpc_cpp.red_mpc_constraints_wrapper(u, ego_list, vehicles_xy_array, safe_dist + 2),
-                'jac': lambda u: mpc_cpp.red_mpc_constraints_jac_wrapper(u, ego_list, vehicles_xy_array, safe_dist + 2)
+                'fun' : lambda u: mpc_cpp.red_mpc_constraints_wrapper(u, ego_list, vehicles_xy_array_front, vehicles_xy_array_rear, safe_dist + 2),
+                'jac': lambda u: mpc_cpp.red_mpc_constraints_jac_wrapper(u, ego_list, vehicles_xy_array_front, vehicles_xy_array_rear, safe_dist + 2)
             }
 
             red_ineq_cons_alpha = {'type': 'ineq',
@@ -160,8 +164,6 @@ class MPControl():
             if not results.success:
                 result_a_x[0] = -6
             mpc_action = np.stack((np.zeros(horizon), np.array(result_a_x)), axis = 1).flatten()
-        # if np.abs(ego_list[3]) > 26 or np.abs(ego_list[4]) > 26:
-        #     mpc_action[0] = 0
         return mpc_action[:2]
 
 
