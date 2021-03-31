@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import numpy as np
-
+from collections import namedtuple
 
 
 STEP_TIME = 0.1
@@ -12,7 +12,19 @@ LANE_NUMBER = 3
 CROSSROAD_SIZE = 50
 horizon = 20
 
-
+# class routeID(Enum):
+#     dl = 'dl'
+#     rd = 'rd'
+#     ur = 'ur'
+#     lu = 'lu'
+#     du = 'du'
+#     rl = 'rl'
+#     ud = 'ud'
+#     lr = 'lr'
+#     dr = 'dr'
+#     ru = 'ru'
+#     ul = 'ul'
+#     ld = 'ld'
 
 
 def judge_feasible(orig_x, orig_y, task):  # map dependant

@@ -5,8 +5,8 @@ from collections import defaultdict
 from math import sqrt
 import numpy as np
 from typing import Dict
-from Env_utils import shift_and_rotate_coordination, _convert_car_coord_to_sumo_coord, \
-    _convert_sumo_coord_to_car_coord, xy2_edgeID_lane, STEP_TIME, CROSSROAD_SIZE
+from Utils import shift_and_rotate_coordination, _convert_car_coord_to_sumo_coord, \
+    _convert_sumo_coord_to_car_coord, xy2_edgeID_lane, STEP_TIME, CROSSROAD_SIZE,L,W
 
 if 'SUMO_HOME' in os.environ:
     tools = os.path.join(os.environ['SUMO_HOME'], 'tools')
@@ -274,7 +274,7 @@ class Traffic(object):
             ego_x = n_ego_dict[egoID]['x']
             ego_y = n_ego_dict[egoID]['y']
             ego_phi = n_ego_dict[egoID]['phi']
-            ego_l = n_ego_dict[egoID]['l']
+            ego_l = L
             ego_x_in_sumo, ego_y_in_sumo, ego_a_in_sumo = _convert_car_coord_to_sumo_coord(ego_x, ego_y, ego_phi, ego_l)
             egdeID, lane = xy2_edgeID_lane(ego_x, ego_y)
             keeproute = 1

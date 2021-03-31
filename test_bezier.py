@@ -6,8 +6,8 @@ LANE_WIDTH = 3.75
 CROSSROAD_SIZE = 50
 LANE_NUMBER = 3
 control_ext = 10
-sl = 75
-meter_pointnum_ratio = 100
+self.extension = 75
+self.meter_pointnum_ratio = 100
 import numpy as np
 
 end_offsets = [LANE_WIDTH*(i+0.5) for i in range(LANE_NUMBER)]
@@ -23,7 +23,7 @@ for start_offset in start_offsets:
                                     [control_point1[1], control_point2[1], control_point3[1], control_point4[1]]],
                                     dtype=np.float32)
         curve = bezier.Curve(node, degree=3)
-        s_vals = np.linspace(0, 1.0, int(np.pi/2*(CROSSROAD_SIZE/2+LANE_WIDTH/2)) * meter_pointnum_ratio)
+        s_vals = np.linspace(0, 1.0, int(np.pi/2*(CROSSROAD_SIZE/2+LANE_WIDTH/2)) * self.meter_pointnum_ratio)
         trj_data = curve.evaluate_multi(s_vals)
 
 
@@ -35,7 +35,7 @@ control_point4 = LANE_WIDTH * 2.5,CROSSROAD_SIZE/2
 node = np.asfortranarray([[control_point1[0], control_point2[0], control_point3[0], control_point4[0]],
                     [control_point1[1], control_point2[1], control_point3[1], control_point4[1]]])
 curve = bezier.Curve(node, degree=3)
-s_vals = np.linspace(0, 1.0, int(sl * meter_pointnum_ratio) + 1)
+s_vals = np.linspace(0, 1.0, int(self.extension * self.meter_pointnum_ratio) + 1)
 trj_data = curve.evaluate_multi(s_vals)
 
 

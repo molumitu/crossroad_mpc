@@ -2,7 +2,7 @@ from controller_params import MPC_Param
 from scipy.optimize.zeros import VALUEERR
 import numpy as np
 from scipy.optimize import minimize
-from Env_utils import CROSSROAD_SIZE, horizon
+from Utils import CROSSROAD_SIZE, horizon
 from predict_surroundings import veh_predict, double_circle_transfer
 import mpc_cpp
 import time
@@ -73,8 +73,8 @@ class MPControl():
             mpc_signal = 5
             future_ref_array = np.array(multi_future_ref_tuple_list[-1])
             red_ineq_cons = {'type': 'ineq',
-                'fun' : lambda u: mpc_cpp.red_mpc_constraints_wrapper(u, ego_list, vehicles_xy_array_front, vehicles_xy_array_rear, safe_dist + 2),
-                'jac': lambda u: mpc_cpp.red_mpc_constraints_jac_wrapper(u, ego_list, vehicles_xy_array_front, vehicles_xy_array_rear, safe_dist + 2)
+                'fun' : lambda u: mpc_cpp.red_mpc_constraints_wrapper(u, ego_list, vehicles_xy_array_front, vehicles_xy_array_rear, safe_dist + 1),
+                'jac': lambda u: mpc_cpp.red_mpc_constraints_jac_wrapper(u, ego_list, vehicles_xy_array_front, vehicles_xy_array_rear, safe_dist + 1)
             }
 
             red_ineq_cons_alpha = {'type': 'ineq',

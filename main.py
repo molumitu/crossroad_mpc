@@ -40,8 +40,8 @@ def run():
 
     for step in range(step_length):
         for egoID in ego_ID_keys:
-            n_ego_vehicles_list[egoID] = env.traffic.each_ego_vehicles_list[egoID]
-            mpc_action[egoID] = mpc_controller[egoID].step(obs[0][egoID], n_ego_vehicles_list[egoID], env.traffic_light)
+            n_ego_vehicles_list[egoID] = env.traffic.each_ego_vehicles_list[egoID]  #[x, y, v, a, route]
+            mpc_action[egoID] = mpc_controller[egoID].step(obs[egoID], n_ego_vehicles_list[egoID], env.traffic_light)
 
         obs, reward, done, info = env.step(mpc_action)
         ego_ID_keys = env.n_ego_dict.keys()
@@ -50,7 +50,7 @@ def run():
     # obs, reward, done, info = env.step(np.array([steer_action[name_index], a_x_action[name_index]])) 复盘用
     # self.result_array[name_index,0] = mpc_action[0]     # steer
     # self.result_array[name_index,1] = mpc_action[1]     # a_x 
-    # self.result_array[name_index,2:10] = obs[0]          # v_x, v_y, r, x, y, phi, steer, a_x
+    # self.result_array[name_index,2:10] = obs          # v_x, v_y, r, x, y, phi, steer, a_x
 
     # self.result_array[name_index,10:10+horizon*1] = future_ref_array[:,0]               # ref_x
     # self.result_array[name_index,10+horizon*1:10+horizon*2] = future_ref_array[:,1]     # ref_y
