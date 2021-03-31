@@ -1,7 +1,6 @@
 import ctypes
 from sys import path
 import os 
-print(os.environ['path'])
 os.environ['path'] += os.pathsep + R"C:\ProgramData\Anaconda3\Lib\site-packages\bezier\extra-dll"
 
 # ctypes.cdll.LoadLibrary(R"C:\ProgramData\Anaconda3\Lib\site-packages\bezier\extra-dll\bezier-b9fda8dc.dll")
@@ -282,18 +281,17 @@ class ReferencePath(object):
         #     next_x +=  0.6* np.cos(next_phi_rad)
         #     next_y +=  0.6* np.sin(next_phi_rad)
 
-        ##### 给未来horizon个ref_points
-        for _ in range(n):
-            current_index = current_index + 60
-            future_ref_list.append(self.indexs2points(current_index, path_index))
-
-
-        ###### 给单点作为horizon
-        # current_indexs = np.array(current_index+ 60 * 10)
+        # ##### 给未来horizon个ref_points
         # for _ in range(n):
-        #     current_indexs += 0
-        #     current_indexs = np.where(current_indexs >= len(self.path_list[path_index][0]) - 1, len(self.path_list[path_index][0]) - 1, current_indexs)  # 避免仿真末尾报错
-        #     future_ref_list.append(self.indexs2points(current_indexs, path_index))
+        #     current_index = current_index + 60
+        #     future_ref_list.append(self.indexs2points(current_index, path_index))
+
+
+        ##### 给单点作为horizon
+        current_indexs = np.array(current_index+ 60 * 5)
+        for _ in range(n):
+            current_indexs += 0
+            future_ref_list.append(self.indexs2points(current_indexs, path_index))
         return current_point, future_ref_list
 
 

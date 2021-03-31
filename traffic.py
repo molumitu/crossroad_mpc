@@ -148,7 +148,6 @@ class Traffic(object):
                                                                                                            a_in_ego_coord)
                 if (-5 < x_in_ego_coord < 1 * (ego_v_x) + ego_l/2. + veh_l/2. + 2 and abs(y_in_ego_coord) < 3) or \
                         (-5 < ego_x_in_veh_coord < 1 * (veh_v) + ego_l/2. + veh_l/2. + 2 and abs(ego_y_in_veh_coord) <3):
-                    #traci.vehicle.moveToXY(veh, '4i', 1, -80, 1.85, 180, 2)
                     traci.vehicle.remove(vehID=veh)
 
     def get_vehicles_for_each_ego(self, n_ego_dict_keys):
@@ -237,12 +236,12 @@ class Traffic(object):
         traci.trafficlight.setPhase('0', phase)
 
     def _update_traffic_light(self):
-        sim_time  = self.sim_time % 60
+        sim_time  = self.sim_time % 70
         if sim_time < 5:
             self.traffic_light = 1  #下方来车绿色
-        elif sim_time < 30:
-            self.traffic_light = 2
         elif sim_time < 35:
+            self.traffic_light = 2
+        elif sim_time < 40:
             self.traffic_light = 3
         else:
             self.traffic_light = 0

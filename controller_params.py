@@ -9,7 +9,7 @@ class MPC_Param:
     red_bounds : tuple = ((-6.1, 0),) * horizon
     Q : tuple= (30, 30, 0.1, 0., 0)
     R : tuple = (0.2,0.1)
-    P : tuple = (100,)
+    P : tuple = (500,)
     safety_dist = 5
 
 

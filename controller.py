@@ -34,8 +34,8 @@ class MPControl():
         vehicles_array = np.zeros((n,horizon,4))
         for i, veh in enumerate(n_ego_vehicles_list):
             vehicles_array[i] = veh_predict(veh, horizon)
-        vehicles_xy_array = vehicles_array[:,:,:2].copy()
-        vehicles_xy_array_front, vehicles_xy_array_rear = double_circle_transfer(vehicles_array, n)
+        vehicles_xy_array = vehicles_array[:,:,:2].copy()    #用来计算cost function
+        vehicles_xy_array_front, vehicles_xy_array_rear = double_circle_transfer(vehicles_array, n) #用来计算安全距离
         #########对直行车加不同的dist
         if abs(ego_list[3]) > 25 or abs(ego_list[4]) > 25:
             safe_dist = 2.5 + ego_list[0] / 6
@@ -132,7 +132,8 @@ class MPControl():
                         self.tem_action_array[i,:] = np.concatenate((results.x[2:],results.x[-2:]),axis =0)
                         #print(f'results.fun[{i}]',results.fun)
                     else:
-                        print(f'[{i}] fail')
+                        pass
+                        #print(f'[{i}] fail')
                 except ValueError:
                     valueError_list.append(i)
                     #print('ValueError')
