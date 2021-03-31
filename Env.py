@@ -1,6 +1,6 @@
 import warnings
 import numpy as np
-from Env_utils import shift_coordination, rotate_coordination, rotate_and_shift_coordination, deal_with_phi, \
+from Env_utils import shift_coordination, rotate_coordination, rotate_and_shift_coordination, \
     L, W, CROSSROAD_SIZE, LANE_WIDTH, LANE_NUMBER, judge_feasible,  STEP_TIME
 from traffic import Traffic
 from mpc_cpp import state_trans_LPF
@@ -13,7 +13,6 @@ class Env:
         self.init_state = init_ego_state
         self.traffic = Traffic()
         self.traffic.init_traffic(self.init_state)
-        # self.traffic.sim_step()   #### 存疑，是否有必要step一步
         self.traffic_light = self.traffic.traffic_light  #@property
         
         self.n_ego_dict = {}
@@ -33,9 +32,6 @@ class Env:
         self.reward_info = None
 
     def _get_all_info(self): 
-        # all_info = dict(all_vehicles=self.all_vehicles,
-        #                 ego_dynamics=self.ego_dynamics,
-        #                 traffic_light=self.traffic_light)
         all_info = None
         return all_info
 

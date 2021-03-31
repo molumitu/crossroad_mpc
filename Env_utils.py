@@ -2,12 +2,11 @@
 # -*- coding: utf-8 -*-
 
 import numpy as np
-import math
 
 
 
 STEP_TIME = 0.1
-L, W = 3.5, 1.7
+L, W = 3.6, 1.7
 LANE_WIDTH = 3.75
 LANE_NUMBER = 3
 CROSSROAD_SIZE = 50
@@ -73,18 +72,18 @@ def rotate_coordination(orig_x, orig_y, orig_d, coordi_rotate_d):
     transformed_x, transformed_y, transformed_d(range:(-180 deg, 180 deg])
     """
 
-    coordi_rotate_d_in_rad = coordi_rotate_d * math.pi / 180
-    transformed_x = orig_x * math.cos(coordi_rotate_d_in_rad) + orig_y * math.sin(coordi_rotate_d_in_rad)
-    transformed_y = -orig_x * math.sin(coordi_rotate_d_in_rad) + orig_y * math.cos(coordi_rotate_d_in_rad)
-    transformed_d = orig_d - coordi_rotate_d
-    if transformed_d > 180:
-        while transformed_d > 180:
-            transformed_d = transformed_d - 360
-    elif transformed_d <= -180:
-        while transformed_d <= -180:
-            transformed_d = transformed_d + 360
-    else:
-        transformed_d = transformed_d
+    coordi_rotate_d_in_rad = coordi_rotate_d
+    transformed_x = orig_x * np.cos(coordi_rotate_d_in_rad) + orig_y * np.sin(coordi_rotate_d_in_rad)
+    transformed_y = -orig_x * np.sin(coordi_rotate_d_in_rad) + orig_y * np.cos(coordi_rotate_d_in_rad)
+    transformed_d = deal_with_phi_rad(orig_d - coordi_rotate_d)
+    # if transformed_d > 180:
+    #     while transformed_d > 180:
+    #         transformed_d = transformed_d - 360
+    # elif transformed_d <= -180:
+    #     while transformed_d <= -180:
+    #         transformed_d = transformed_d + 360
+    # else:
+    #     transformed_d = transformed_d
     return transformed_x, transformed_y, transformed_d
 
 
@@ -148,13 +147,13 @@ def xy2_edgeID_lane(x, y):
         lane = int((LANE_NUMBER-1)-int(x/LANE_WIDTH))
     elif x < -CROSSROAD_SIZE/2:
         edgeID = '4i'
-        lane = int((LANE_NUMBER-1)-int(y/LANE_WIDTH))
+        lane = int((LANE_NUMBER-1)+int(y/LANE_WIDTH))
     elif y > CROSSROAD_SIZE/2:
         edgeID = '3i'
-        lane = int((LANE_NUMBER-1)-int(x/LANE_WIDTH))
+        lane = int((LANE_NUMBER-1)+int(x/LANE_WIDTH))
     elif x > CROSSROAD_SIZE/2:
         edgeID = '2i'
-        lane = int((LANE_NUMBER-1)-int(-y/LANE_WIDTH))
+        lane = int((LANE_NUMBER-1)-int(y/LANE_WIDTH))
     else:
         edgeID = '0'
         lane = 0
@@ -162,21 +161,17 @@ def xy2_edgeID_lane(x, y):
 
 
 def _convert_car_coord_to_sumo_coord(x_in_car_coord, y_in_car_coord, a_in_car_coord, car_length):  # a in deg
-    x_in_sumo_coord = x_in_car_coord + car_length / 2 * math.cos(math.radians(a_in_car_coord))
-    y_in_sumo_coord = y_in_car_coord + car_length / 2 * math.sin(math.radians(a_in_car_coord))
-    a_in_sumo_coord = -a_in_car_coord + 90.
+    x_in_sumo_coord = x_in_car_coord + car_length / 2 * np.cos(a_in_car_coord)
+    y_in_sumo_coord = y_in_car_coord + car_length / 2 * np.sin(a_in_car_coord)
+    a_in_sumo_coord = -a_in_car_coord + np.pi/2
     return x_in_sumo_coord, y_in_sumo_coord, a_in_sumo_coord
 
 
 def _convert_sumo_coord_to_car_coord(x_in_sumo_coord, y_in_sumo_coord, a_in_sumo_coord, car_length):
-    a_in_car_coord = - a_in_sumo_coord + 90.
-    x_in_car_coord = x_in_sumo_coord - (math.cos(a_in_car_coord / 180. * math.pi) * car_length / 2)
-    y_in_car_coord = y_in_sumo_coord - (math.sin(a_in_car_coord / 180. * math.pi) * car_length / 2)
-    return x_in_car_coord, y_in_car_coord, deal_with_phi(a_in_car_coord)
-
-
-def deal_with_phi(phi):
-    return np.mod(phi+180,2*180)-180.
+    a_in_car_coord = - a_in_sumo_coord + np.pi/2
+    x_in_car_coord = x_in_sumo_coord - (np.cos(a_in_car_coord) * car_length / 2)
+    y_in_car_coord = y_in_sumo_coord - (np.sin(a_in_car_coord) * car_length / 2)
+    return x_in_car_coord, y_in_car_coord, (a_in_car_coord)
 
 def deal_with_phi_rad(phi):
     return np.mod(phi+np.pi,2*np.pi)-np.pi

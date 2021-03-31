@@ -4,29 +4,23 @@ from Env_utils import L, W
 
 
 def generate_ego_init_state(routeID, index):
-    if routeID == 'dl':
-        task = 'left'
-    elif routeID == 'du':
-        task = 'straight'
-    elif routeID == 'dr':
-        task = 'right'
-    ref = ReferencePath(task)
+    ref = ReferencePath(routeID)
     x, y, phi = ref.indexs2points(index, path_index=0)
     steer = 0.
     a_x = 0.
-    v = 6
+    v = 8
     ego_state = {'v_x':v,
-            "v_y":0,
-            'r':0,
-            'x':x,
-            'y':y,
-            'phi':phi,
-            'steer' : steer,
-            'a_x' : a_x,
-            'l':L,
-            'w':W,
-            'routeID':routeID
-            }
+                "v_y":0,
+                'r':0,
+                'x':x,
+                'y':y,
+                'phi':phi,
+                'steer' : steer,
+                'a_x' : a_x,
+                'l':L,
+                'w':W,
+                'routeID':routeID
+                }
     return ego_state, ref
 
 if __name__ == "__main__" :

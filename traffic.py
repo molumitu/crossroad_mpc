@@ -3,6 +3,7 @@ import os
 import sys
 from collections import defaultdict
 from math import sqrt
+import numpy as np
 from typing import Dict
 from Env_utils import shift_and_rotate_coordination, _convert_car_coord_to_sumo_coord, \
     _convert_sumo_coord_to_car_coord, xy2_edgeID_lane, STEP_TIME, CROSSROAD_SIZE
@@ -126,14 +127,14 @@ class Traffic(object):
             ego_x_in_sumo, ego_y_in_sumo, ego_a_in_sumo = _convert_car_coord_to_sumo_coord(ego_x, ego_y, ego_phi, ego_l)
             edgeID, lane = xy2_edgeID_lane(ego_x, ego_y)
             traci.vehicle.add(vehID=egoID, routeID=ego_dict['routeID'],typeID='self_car',departLane = lane, departPos = 0)
-            traci.vehicle.moveToXY(egoID, edgeID, lane, ego_x_in_sumo, ego_y_in_sumo, ego_a_in_sumo, keepRoute=1)
+            traci.vehicle.moveToXY(egoID, edgeID, lane, ego_x_in_sumo, ego_y_in_sumo, ego_a_in_sumo*180/np.pi, keepRoute=1)
             traci.vehicle.setLength(egoID, ego_dict['l'])
             traci.vehicle.setWidth(egoID, ego_dict['w'])
             traci.vehicle.setSpeed(egoID, ego_v_x)
 
             for veh in other_vehicles:
                 x_in_sumo, y_in_sumo = other_vehicles[veh][traci.constants.VAR_POSITION]
-                a_in_sumo = other_vehicles[veh][traci.constants.VAR_ANGLE]
+                a_in_sumo = other_vehicles[veh][traci.constants.VAR_ANGLE] /180 * np.pi
                 veh_l = other_vehicles[veh][traci.constants.VAR_LENGTH]
                 veh_v = other_vehicles[veh][traci.constants.VAR_SPEED]
                 # veh_sig = other_vehicles[veh][traci.constants.VAR_SIGNALS]
@@ -163,7 +164,7 @@ class Traffic(object):
             width_ego = veh_info_dict[egoID][traci.constants.VAR_WIDTH]
             route_ego = veh_info_dict[egoID][traci.constants.VAR_EDGES]
             x_in_sumo_ego, y_in_sumo_ego = veh_info_dict[egoID][traci.constants.VAR_POSITION]
-            a_in_sumo_ego = veh_info_dict[egoID][traci.constants.VAR_ANGLE]
+            a_in_sumo_ego = veh_info_dict[egoID][traci.constants.VAR_ANGLE] /180 *np.pi
             x_ego, y_ego, a_ego = _convert_sumo_coord_to_car_coord(x_in_sumo_ego, y_in_sumo_ego, a_in_sumo_ego, length_ego)
             v_ego = veh_info_dict[egoID][traci.constants.VAR_SPEED]
 
@@ -173,59 +174,52 @@ class Traffic(object):
                     width = veh_info_dict[veh][traci.constants.VAR_WIDTH]
                     route = veh_info_dict[veh][traci.constants.VAR_EDGES]
                     x_in_sumo, y_in_sumo = veh_info_dict[veh][traci.constants.VAR_POSITION]
-                    a_in_sumo = veh_info_dict[veh][traci.constants.VAR_ANGLE]
+                    a_in_sumo = veh_info_dict[veh][traci.constants.VAR_ANGLE] /180 *np.pi
 
                     # transfer x,y,a in car coord   # a means angle i.e. phi
                     x, y, a = _convert_sumo_coord_to_car_coord(x_in_sumo, y_in_sumo, a_in_sumo, length)
                     v = veh_info_dict[veh][traci.constants.VAR_SPEED]
-                    traci.vehicle.setColor(str(veh),(255,255,255))
-                    # if  (sqrt((x_ego-x) ** 2 + (y_ego-y) ** 2) < 80) and \
-                    #     (((route[1] == '4i') and (x > -CROSSROAD_SIZE/2 - 10)) or ((route[1] == '1i') \
-                    #         and (y > -CROSSROAD_SIZE/2) and (x < CROSSROAD_SIZE/2)\
-                    #         ))\
-                    #         and x < (x_ego + 15)  and y > (y_ego - 15):
+                    #traci.vehicle.setColor(str(veh),(255,255,255))
                     if abs(y_ego) > 25:
-                        if abs(x_ego - x) < 3 and y > y_ego and y - y_ego < 15:
+                        if abs(x_ego - x) < 3 and abs(y_ego) - abs(y) > 0 and abs(y_ego) - abs(y) < 15:
                             if veh not in n_ego_dict_keys:
                                 veh_set.add(veh)    
                             self.each_ego_vehicles[egoID].append(dict(veh_ID=veh, x=x, y=y, v=v, phi=a, l=length, w=width, route=route))
                             self.each_ego_vehicles_list[egoID].append([x, y, v, a, route])
                     elif abs(x_ego) > 25:
-                        if abs(y_ego - y) < 3 and x < x_ego and x_ego - x < 15:
+                        if abs(y_ego - y) < 3 and abs(x_ego) - abs(x) > 0 and abs(x_ego) - abs(x) < 15:
                             if veh not in n_ego_dict_keys:
                                 veh_set.add(veh)    
                             self.each_ego_vehicles[egoID].append(dict(veh_ID=veh, x=x, y=y, v=v, phi=a, l=length, w=width, route=route))
                             self.each_ego_vehicles_list[egoID].append([x, y, v, a, route])
-                    else:
-                        if route_ego[1] == '4i':
-                            if (sqrt((x_ego-x) ** 2 + (y_ego-y) ** 2) < 30) and \
-                                x < x_ego + 3 and y > y_ego and x > -25:
-                                #  (((route[1]=='1i' and route[0] != '4o' and (y > -CROSSROAD_SIZE/2 + 15) and (x < CROSSROAD_SIZE/2 + 2))\
-                                # or (route[1]=='4i'))and x < (x_ego)  and y > (y_ego)):
-                                if veh not in n_ego_dict_keys:
-                                    veh_set.add(veh)    
-                                self.each_ego_vehicles[egoID].append(dict(veh_ID=veh, x=x, y=y, v=v, phi=a, l=length, w=width, route=route))
-                                self.each_ego_vehicles_list[egoID].append([x, y, v, a, route])
-                        elif route_ego[1] == '3i':
-                            pass
-                            if (sqrt((x_ego-x) ** 2 + (y_ego-y) ** 2) < 30) and \
-                                y > y_ego and (x > x_ego -5 and x < x_ego + 15):
-                                #  (((route[1]=='1i' and route[0] != '4o' and (y > -CROSSROAD_SIZE/2 + 15) and (x < CROSSROAD_SIZE/2 + 2))\
-                                # or (route[1]=='4i'))and x < (x_ego)  and y > (y_ego)):
-                                if veh not in n_ego_dict_keys:
-                                    veh_set.add(veh)    
-                                self.each_ego_vehicles[egoID].append(dict(veh_ID=veh, x=x, y=y, v=v, phi=a, l=length, w=width, route=route))
-                                self.each_ego_vehicles_list[egoID].append([x, y, v, a, route])
-                        elif route_ego[1] == '2i':
-                            pass
-                            # if (sqrt((x_ego-x) ** 2 + (y_ego-y) ** 2) < 20) and \
-                            #     x > x_ego - 3 and y > y_ego - 3:
-                            #     #  (((route[1]=='1i' and route[0] != '4o' and (y > -CROSSROAD_SIZE/2 + 15) and (x < CROSSROAD_SIZE/2 + 2))\
-                            #     # or (route[1]=='4i'))and x < (x_ego)  and y > (y_ego)):
-                            #     if veh not in n_ego_dict_keys:
-                            #         veh_set.add(veh)    
-                            #     self.each_ego_vehicles[egoID].append(dict(veh_ID=veh, x=x, y=y, v=v, phi=a, l=length, w=width, route=route))
-                            #     self.each_ego_vehicles_list[egoID].append([x, y, v, a, route])
+                    elif (sqrt((x_ego-x) ** 2 + (y_ego-y) ** 2) < 15):
+                        if veh not in n_ego_dict_keys:
+                            veh_set.add(veh)    
+                        self.each_ego_vehicles[egoID].append(dict(veh_ID=veh, x=x, y=y, v=v, phi=a, l=length, w=width, route=route))
+                        self.each_ego_vehicles_list[egoID].append([x, y, v, a, route])
+
+                    #     if route_ego[1] == '4i':
+                    #         if (sqrt((x_ego-x) ** 2 + (y_ego-y) ** 2) < 30) and \
+                    #             x < x_ego + 3 and y > y_ego and x > -25:
+                    #             #  (((route[1]=='1i' and route[0] != '4o' and (y > -CROSSROAD_SIZE/2 + 15) and (x < CROSSROAD_SIZE/2 + 2))\
+                    #             # or (route[1]=='4i'))and x < (x_ego)  and y > (y_ego)):
+                    #             if veh not in n_ego_dict_keys:
+                    #                 veh_set.add(veh)    
+                    #             self.each_ego_vehicles[egoID].append(dict(veh_ID=veh, x=x, y=y, v=v, phi=a, l=length, w=width, route=route))
+                    #             self.each_ego_vehicles_list[egoID].append([x, y, v, a, route])
+                    #     elif route_ego[1] == '3i':
+                    #         pass
+                    #         if (sqrt((x_ego-x) ** 2 + (y_ego-y) ** 2) < 30) and \
+                    #             y > y_ego and (x > x_ego -5 and x < x_ego + 15):
+                    #             #  (((route[1]=='1i' and route[0] != '4o' and (y > -CROSSROAD_SIZE/2 + 15) and (x < CROSSROAD_SIZE/2 + 2))\
+                    #             # or (route[1]=='4i'))and x < (x_ego)  and y > (y_ego)):
+                    #             if veh not in n_ego_dict_keys:
+                    #                 veh_set.add(veh)    
+                    #             self.each_ego_vehicles[egoID].append(dict(veh_ID=veh, x=x, y=y, v=v, phi=a, l=length, w=width, route=route))
+                    #             self.each_ego_vehicles_list[egoID].append([x, y, v, a, route])
+                    #     elif route_ego[1] == '2i':
+                    #         pass
+
 
         for veh in veh_set:
             traci.vehicle.setColor(str(veh),(255,0,0))
@@ -286,10 +280,10 @@ class Traffic(object):
             egdeID, lane = xy2_edgeID_lane(ego_x, ego_y)
             keeproute = 1
             try:
-                traci.vehicle.moveToXY(egoID, egdeID, lane, ego_x_in_sumo, ego_y_in_sumo, ego_a_in_sumo, keeproute)
+                traci.vehicle.moveToXY(egoID, egdeID, lane, ego_x_in_sumo, ego_y_in_sumo, ego_a_in_sumo/np.pi *180, keeproute)
             except traci.exceptions.TraCIException:
-                print(egoID, egdeID, lane, ego_x_in_sumo, ego_y_in_sumo, ego_a_in_sumo, keeproute)
-                traci.vehicle.moveToXY(egoID, egdeID, lane, ego_x_in_sumo, ego_y_in_sumo, ego_a_in_sumo, keeproute)
+                print(egoID, egdeID, lane, ego_x_in_sumo, ego_y_in_sumo, ego_a_in_sumo/np.pi *180, keeproute)
+                traci.vehicle.moveToXY(egoID, egdeID, lane, ego_x_in_sumo, ego_y_in_sumo, ego_a_in_sumo/np.pi *180, keeproute)
             traci.vehicle.setSpeed(egoID, ego_v_x)
 
 if __name__ == "__main__":
