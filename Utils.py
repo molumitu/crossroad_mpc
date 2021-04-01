@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 
 import numpy as np
-from collections import namedtuple
 
 
 STEP_TIME = 0.1
@@ -87,7 +86,7 @@ def rotate_coordination(orig_x, orig_y, orig_d, coordi_rotate_d):
     coordi_rotate_d_in_rad = coordi_rotate_d
     transformed_x = orig_x * np.cos(coordi_rotate_d_in_rad) + orig_y * np.sin(coordi_rotate_d_in_rad)
     transformed_y = -orig_x * np.sin(coordi_rotate_d_in_rad) + orig_y * np.cos(coordi_rotate_d_in_rad)
-    transformed_d = deal_with_phi_rad(orig_d - coordi_rotate_d)
+    transformed_d = scale_phi(orig_d - coordi_rotate_d)
     # if transformed_d > 180:
     #     while transformed_d > 180:
     #         transformed_d = transformed_d - 360
@@ -171,21 +170,21 @@ def xy2_edgeID_lane(x, y):
         lane = 0
     return edgeID, lane
 
-
-def _convert_car_coord_to_sumo_coord(x_in_car_coord, y_in_car_coord, a_in_car_coord, car_length):  # a in deg
+# sumo的质心在车头
+def convert_car_coord_to_sumo_coord(x_in_car_coord, y_in_car_coord, a_in_car_coord, car_length):  # a in deg
     x_in_sumo_coord = x_in_car_coord + car_length / 2 * np.cos(a_in_car_coord)
     y_in_sumo_coord = y_in_car_coord + car_length / 2 * np.sin(a_in_car_coord)
     a_in_sumo_coord = -a_in_car_coord + np.pi/2
     return x_in_sumo_coord, y_in_sumo_coord, a_in_sumo_coord
 
 
-def _convert_sumo_coord_to_car_coord(x_in_sumo_coord, y_in_sumo_coord, a_in_sumo_coord, car_length):
+def convert_sumo_coord_to_car_coord(x_in_sumo_coord, y_in_sumo_coord, a_in_sumo_coord, car_length):
     a_in_car_coord = - a_in_sumo_coord + np.pi/2
     x_in_car_coord = x_in_sumo_coord - (np.cos(a_in_car_coord) * car_length / 2)
     y_in_car_coord = y_in_sumo_coord - (np.sin(a_in_car_coord) * car_length / 2)
-    return x_in_car_coord, y_in_car_coord, (a_in_car_coord)
+    return x_in_car_coord, y_in_car_coord, a_in_car_coord
 
-def deal_with_phi_rad(phi):
+def scale_phi(phi):
     return np.mod(phi+np.pi,2*np.pi)-np.pi
 
 if __name__ == '__main__':

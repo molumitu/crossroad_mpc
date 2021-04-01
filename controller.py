@@ -30,6 +30,16 @@ class MPControl():
 
         # 0：left 1:straight 2:right
         # vehicles_array : N*horizon*4   N=8
+
+        # # # only static obstacle##################################################################
+        # x = np.ones((1,horizon)) * -22
+        # y = np.ones((1,horizon)) * -1.5
+        # vehicles_xy_array_static = np.stack((x,y),axis = 2)
+        # ineq_cons_2 = {'type': 'ineq',
+        #     'fun' : lambda u: mpc_cpp.mpc_constraints(u, ego_list, vehicles_xy_array_static, safe_dist_front, safe_dist_rear)}
+        ############################################################################################
+
+
         n = len(n_ego_vehicles_list)
         vehicles_array = np.zeros((n,horizon,4))
         for i, veh in enumerate(n_ego_vehicles_list):
@@ -38,29 +48,11 @@ class MPControl():
         vehicles_xy_array_front, vehicles_xy_array_rear = double_circle_transfer(vehicles_array, n) #用来计算安全距离
         #########对直行车加不同的dist
         if abs(ego_list[3]) > 25 or abs(ego_list[4]) > 25:
-            safe_dist = 2.5 + ego_list[0] / 6
+            safe_dist_front = 2.5
         else:
-            safe_dist = 2.5 + 1.5 * ego_list[0] / 6
+            safe_dist_front = 2.5 +1
+        safe_dist_rear = 2.5
 
-
-        ineq_cons = {'type': 'ineq',
-            'fun' : lambda u: mpc_cpp.mpc_constraints(u, ego_list, vehicles_xy_array_front, vehicles_xy_array_rear, safe_dist),
-            'jac': lambda u: mpc_cpp.mpc_constraints_wrapper(u, ego_list, vehicles_xy_array_front, vehicles_xy_array_rear, safe_dist)
-            }
-
-        # # # only static obstacle##################################################################
-        # x = np.ones((1,horizon)) * -22
-        # y = np.ones((1,horizon)) * -1.5
-        # safe_dist = 5.
-        # vehicles_xy_array_static = np.stack((x,y),axis = 2)
-        # ineq_cons_2 = {'type': 'ineq',
-        #     'fun' : lambda u: mpc_cpp.mpc_constraints(u, ego_list, vehicles_xy_array_static, safe_dist)}
-        ############################################################################################
-
-        ineq_cons_alpha = {'type': 'ineq',
-            'fun' : lambda u: mpc_cpp.mpc_alpha_constraints(u, ego_list),
-            'jac': lambda u: mpc_cpp.mpc_alpha_constraints_wrapper(u, ego_list)
-            }
         multi_future_ref_tuple_list = self.ref.multi_future_ref_points(ego_list[3], ego_list[4], horizon)
         future_ref_array = np.array(multi_future_ref_tuple_list[0])
 
@@ -73,8 +65,8 @@ class MPControl():
             mpc_signal = 5
             future_ref_array = np.array(multi_future_ref_tuple_list[-1])
             red_ineq_cons = {'type': 'ineq',
-                'fun' : lambda u: mpc_cpp.red_mpc_constraints_wrapper(u, ego_list, vehicles_xy_array_front, vehicles_xy_array_rear, safe_dist + 1),
-                'jac': lambda u: mpc_cpp.red_mpc_constraints_jac_wrapper(u, ego_list, vehicles_xy_array_front, vehicles_xy_array_rear, safe_dist + 1)
+                'fun' : lambda u: mpc_cpp.red_mpc_constraints_wrapper(u, ego_list, vehicles_xy_array_front, vehicles_xy_array_rear, safe_dist_front + 2, safe_dist_rear),
+                'jac': lambda u: mpc_cpp.red_mpc_constraints_jac_wrapper(u, ego_list, vehicles_xy_array_front, vehicles_xy_array_rear, safe_dist_front + 2, safe_dist_rear)
             }
 
             red_ineq_cons_alpha = {'type': 'ineq',
@@ -104,10 +96,22 @@ class MPControl():
             #     mpc_signal = 4
             # else:
             #print('自车状态',ego_list)
+
+            ineq_cons = {'type': 'ineq',
+            'fun' : lambda u: mpc_cpp.mpc_constraints(u, ego_list, vehicles_xy_array_front, vehicles_xy_array_rear, safe_dist_front, safe_dist_rear),
+            'jac': lambda u: mpc_cpp.mpc_constraints_wrapper(u, ego_list, vehicles_xy_array_front, vehicles_xy_array_rear,safe_dist_front, safe_dist_rear)
+            }
+
+
+            ineq_cons_alpha = {'type': 'ineq',
+            'fun' : lambda u: mpc_cpp.mpc_alpha_constraints(u, ego_list),
+            'jac': lambda u: mpc_cpp.mpc_alpha_constraints_wrapper(u, ego_list)
+            }
+
             result_list = []
             result_index_list = []
             valueError_list = []
-            for i in range(self.routes_num ):
+            for i in range(self.routes_num):
                 future_ref_array = np.array(multi_future_ref_tuple_list[i])
                 try:  
                     start = time.time()
@@ -154,9 +158,6 @@ class MPControl():
                 ref_best_index = result_index_list[min_index]
                 mpc_signal = ref_best_index           
                 future_ref_array = np.array(multi_future_ref_tuple_list[ref_best_index])
-
-
-
 
         if (abs(ego_list[3]) > 28 or abs(ego_list[4]) > 28) and ego_list[6] == 0:
             mpc_action[0] = 0
