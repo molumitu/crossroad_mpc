@@ -12,5 +12,8 @@ compare_solver_result/
 *.log
 *.slxc
 *.json
+*.mlx
+*.csv
+*.xlsx
 
 

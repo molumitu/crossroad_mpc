@@ -11,7 +11,7 @@ def route_to_task(veh_route):
     return task
 
 def veh_predict(veh, horizon):
-    veh_x, veh_y, veh_v, veh_phi, veh_route = veh
+    veh_x, veh_y, veh_v, veh_phi, veh_acc, veh_route = veh
     veh_task = route_to_task(veh_route)
     veh_array = np.zeros((horizon,4))
 
@@ -22,7 +22,7 @@ def veh_predict(veh, horizon):
     ones = np.ones(horizon)
     veh_x_array = veh_x * ones + rise * veh_x_delta
     veh_y_array = veh_y * ones + rise * veh_y_delta
-    veh_v_array = veh_v * ones
+    veh_v_array = np.minimum(veh_v * ones + rise * veh_acc, 8)
 
     if veh_task  == 0:  # 左转
         veh_phi_rad_delta = np.where(-25 < veh_x < 25, (veh_v / 26.875) * STEP_TIME, 0)

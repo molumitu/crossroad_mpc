@@ -48,7 +48,7 @@ class Env:
         for egoID, ego in n_ego_dict_copy.items():
             ego_x = ego.ego_dynamics['x']
             ego_y = ego.ego_dynamics['y']
-            if abs(ego_x) > 97 or abs(ego_y) > 97:
+            if abs(ego_x) > 80 or abs(ego_y) > 80:
                 del self.n_ego_dict[egoID]
 
     def step(self, action):
@@ -68,6 +68,9 @@ class Env:
         info = self._get_info()
 
         return self.obs, reward, done, info
+
+    def render(self):
+        pass
 
 class Ego:
     ego_dynamics_keys = ('v_x', 'v_y', 'r', 'x', 'y', 'phi', 'steer', 'a_x')

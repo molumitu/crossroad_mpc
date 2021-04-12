@@ -67,7 +67,7 @@ class MPControl_ipopt:
 
     def step(self, ego_list, n_ego_vehicles_list, traffic_light):
         # ego_list [v_x, v_y, r, x, y, phi, steer_current, a_x_current]
-        # n_ego_vehicles_list [x, y, v, a, route]
+        # n_ego_vehicles_list [x, y, v, a, acc, route]
         ref_best_index = 0
         # 0：left 1:straight 2:right
         # vehicles_array : N*horizon*4   N=8

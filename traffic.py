@@ -28,9 +28,7 @@ class Traffic(object):
 
     def __init__(self):
         self.step_time = str(STEP_TIME)
-        #seed = 73555608
-        #seed = 7355560
-        seed = 5
+        seed = 6
         import time
         start = time.time()
         port = sumolib.miscutils.getFreeSocketPort()
@@ -74,6 +72,7 @@ class Traffic(object):
                                                 # traci.constants.VAR_EMERGENCY_DECEL,
                                                 # traci.constants.VAR_LANE_INDEX,
                                                 # traci.constants.VAR_LANEPOSITION,
+                                                traci.constants.VAR_ACCELERATION,
                                                 traci.constants.VAR_EDGES,
                                                 # traci.constants.VAR_ROUTE_INDEX
                                                 ],
@@ -86,7 +85,7 @@ class Traffic(object):
             traci.simulationStep()
 
     def init_traffic(self, init_n_ego_dict:Dict[str, float or str]):
-        self.sim_time = 0
+        self.sim_time = 20
         self.all_vehicles = traci.vehicle.getContextSubscriptionResults('collector')  # 最原始的信息
 
 
@@ -161,12 +160,20 @@ class Traffic(object):
             a_in_sumo_ego = veh_info_dict[egoID][traci.constants.VAR_ANGLE] /180 *np.pi
             x_ego, y_ego, a_ego = convert_sumo_coord_to_car_coord(x_in_sumo_ego, y_in_sumo_ego, a_in_sumo_ego, length_ego)
             v_ego = veh_info_dict[egoID][traci.constants.VAR_SPEED]
+            route_ego = veh_info_dict[egoID][traci.constants.VAR_EDGES]
+            if route_ego == ('1o', '4i') or route_ego == ('2o', '1i') or route_ego == ('3o', '2i') or route_ego == ('4o', '3i'):
+                task = 0   #左转
+            elif route_ego == ('4o', '1i') or route_ego == ('1o', '2i') or route_ego == ('2o', '3i') or route_ego == ('3o', '4i'):
+                task = 2  #右转
+            else:
+                task = 1  #直行
 
             for veh in veh_info_dict:
                 if veh != egoID  and veh != 'collector':
                     length = veh_info_dict[veh][traci.constants.VAR_LENGTH]
                     width = veh_info_dict[veh][traci.constants.VAR_WIDTH]
                     route = veh_info_dict[veh][traci.constants.VAR_EDGES]
+                    acc = veh_info_dict[veh][traci.constants.VAR_ACCELERATION]
                     x_in_sumo, y_in_sumo = veh_info_dict[veh][traci.constants.VAR_POSITION]
                     a_in_sumo = veh_info_dict[veh][traci.constants.VAR_ANGLE] /180 *np.pi
 
@@ -180,19 +187,30 @@ class Traffic(object):
                         if abs(x_ego - x) < 3 and abs(y_ego) - abs(y) > 0 and abs(y_ego) - abs(y) < 15:
                             if veh not in n_ego_dict_keys:
                                 veh_set.add(veh)    
-                            self.each_ego_vehicles_list[egoID].append([x, y, v, a, route])
+                            self.each_ego_vehicles_list[egoID].append([x, y, v, a, acc, route])
                     elif abs(x_ego) > 25:
                         if abs(y_ego - y) < 3 and abs(x_ego) - abs(x) > 0 and abs(x_ego) - abs(x) < 15:
                             if veh not in n_ego_dict_keys:
                                 veh_set.add(veh)    
-                            self.each_ego_vehicles_list[egoID].append([x, y, v, a, route])
-                    elif (sqrt((x_ego-x) ** 2 + (y_ego-y) ** 2) < 15):
+                            self.each_ego_vehicles_list[egoID].append([x, y, v, a, acc, route])
+                    elif (sqrt((x_ego-x) ** 2 + (y_ego-y) ** 2) < 30) and task == 0 \
+                        and x_in_ego_coord > -3 and y_in_ego_coord > -3 and abs(x)<27 and abs(y)<27: #左转
                         if veh not in n_ego_dict_keys:
                             veh_set.add(veh)    
-                        self.each_ego_vehicles_list[egoID].append([x, y, v, a, route])
+                        self.each_ego_vehicles_list[egoID].append([x, y, v, a, acc, route])
+                    elif (sqrt((x_ego-x) ** 2 + (y_ego-y) ** 2) < 20) and task == 1 \
+                        and x_in_ego_coord > 0 and y_in_ego_coord > -5 and y_in_ego_coord < 5: #直行
+                        if veh not in n_ego_dict_keys:
+                            veh_set.add(veh)    
+                        self.each_ego_vehicles_list[egoID].append([x, y, v, a, acc, route])
+                    elif (sqrt((x_ego-x) ** 2 + (y_ego-y) ** 2) < 20) and task == 2 \
+                        and x_in_ego_coord > -3 and y_in_ego_coord < 3: #右转
+                        if veh not in n_ego_dict_keys:
+                            veh_set.add(veh)    
+                        self.each_ego_vehicles_list[egoID].append([x, y, v, a, acc, route])
 
-        for veh in veh_set:
-            traci.vehicle.setColor(str(veh),(255,0,0))
+        # for veh in veh_set:
+        #     traci.vehicle.setColor(str(veh),(255,0,0))
         for veh in n_ego_dict_keys:
             traci.vehicle.setColor(str(veh),(255,0,255))
 
@@ -207,15 +225,17 @@ class Traffic(object):
     def _update_traffic_light(self):
         sim_time  = self.sim_time % 130
         if sim_time < 5:
-            self.traffic_light = 1  #下方来车绿色
+            self.traffic_light = 3  #下方来车绿色
         elif sim_time < 65:
-            self.traffic_light = 2
-        elif sim_time < 70:
-            self.traffic_light = 3
-        else:
             self.traffic_light = 0
+        elif sim_time < 70:
+            self.traffic_light = 1
+        else:
+            self.traffic_light = 2
 # 2301
 # 0123
+# 1230
+#
 
     def sim_step(self):
         self.sim_time += STEP_TIME

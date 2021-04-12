@@ -18,9 +18,9 @@ class ReferencePath(object):
         self._construct_red_ref_path()
 
     def cal_route_num(self):
-        routes_ID_to_routes_num_dict = {'dl':3, 'rd':3, 'ur':3, 'lu':3,
-                                        'du':3, 'rl':3, 'ud':3, 'lr':3,
-                                        'dr':1, 'ru':1, 'ul':1, 'ld':1}
+        routes_ID_to_routes_num_dict = {'dl':4, 'rd':4, 'ur':4, 'lu':4,
+                                        'du':4, 'rl':4, 'ud':4, 'lr':4,
+                                        'dr':2, 'ru':2, 'ul':2, 'ld':2}
         return routes_ID_to_routes_num_dict[self.routeID]
 
     def _construct_red_ref_path(self):
@@ -34,6 +34,8 @@ class ReferencePath(object):
             red_x = LANE_WIDTH * 0.5
         elif self.routeID in ('du', 'rl', 'ud', 'lr'):
             red_x = LANE_WIDTH * 1.5
+        elif self.routeID in ('dr', 'ru', 'ul', 'ld'):
+            red_x = LANE_WIDTH * 2.5
         else:
             return
 
@@ -60,12 +62,12 @@ class ReferencePath(object):
             R = CROSSROAD_SIZE/2 + 0.5 * LANE_WIDTH
             for i in range(LANE_NUMBER):
                 #---------start_straight_line---------------------------------------------------------
-                start_points_num = int((self.extension+ (i - 0.5) * LANE_WIDTH ) * self.meter_pointnum_ratio) + 1
+                start_points_num = int((self.extension+ i * LANE_WIDTH ) * self.meter_pointnum_ratio) + 1
                 start_straight_line_x = 0.5 * LANE_WIDTH * np.ones((start_points_num,))[:-1]
                 start_straight_line_y = np.linspace(-CROSSROAD_SIZE/2 - self.extension, -CROSSROAD_SIZE/2 + i*LANE_WIDTH , start_points_num)[:-1]
                 
                 #---------connected_arc_line-----------------------------------------------------------
-                s_vals = np.linspace(0, np.pi/2, arc_points_num)
+                s_vals = np.linspace(0, np.pi/2, int(arc_points_num))
                 arc_line_x = R * np.cos(s_vals) - CROSSROAD_SIZE/2
                 arc_line_y = R * np.sin(s_vals) - CROSSROAD_SIZE/2 + i * LANE_WIDTH
 
@@ -86,13 +88,25 @@ class ReferencePath(object):
                 self.path_len_list.append(len(total_x))
         
         elif self.routeID in ('du', 'rl', 'ud', 'lr'):
+            #---------straight_line-----------------------------------------------------------
+            total_nums = int((self.extension * 2 + CROSSROAD_SIZE) * self.meter_pointnum_ratio) + 1
+            total_x = LANE_WIDTH * (1.5) * np.ones(shape=(total_nums,))
+            total_y = np.linspace(-CROSSROAD_SIZE/2 - self.extension , CROSSROAD_SIZE/2 + self.extension, total_nums)
+       
+            xs_1, ys_1 = total_x[:-1], total_y[:-1]
+            xs_2, ys_2 = total_x[1:], total_y[1:]
+            phis_1 = np.arctan2(ys_2 - ys_1, xs_2 - xs_1)
+            total_phi = np.concatenate((phis_1, phis_1[-1:]), axis=0)
+            planned_path = coordinate_trans((total_x, total_y, total_phi), self.routeID)
+            self.path_list.append(planned_path)
+            self.path_len_list.append(len(total_x))
  
             #---------start_straight_line---------------------------------------------------------
             start_points_num = int(self.extension * self.meter_pointnum_ratio) + 1
             start_straight_line_x = LANE_WIDTH * 1.5 * np.ones(shape=(start_points_num,))[:-1]
             start_straight_line_y = np.linspace(-CROSSROAD_SIZE/2 - self.extension, -CROSSROAD_SIZE/2 , start_points_num)[:-1]
             
-            for i in range(LANE_NUMBER):
+            for i in [0,2]:
                 #---------connected_bezier_line-----------------------------------------------------------
                 connect_points_num = int(CROSSROAD_SIZE * self.meter_pointnum_ratio) + 1
                 control_ext = 15
@@ -104,7 +118,9 @@ class ReferencePath(object):
                 node = np.asfortranarray([[control_point1[0], control_point2[0], control_point3[0], control_point4[0]],
                                     [control_point1[1], control_point2[1], control_point3[1], control_point4[1]]])
                 curve = bezier.Curve(node, degree=3)
+                connect_points_num = int(curve.length * self.meter_pointnum_ratio) + 1
                 s_vals = np.linspace(0, 1.0, connect_points_num)
+                #curve.length 50.16379702950708m
                 trj_data = curve.evaluate_multi(s_vals)
                 connect_line_x = trj_data[0]
                 connect_line_y = trj_data[1]
@@ -221,6 +237,14 @@ if __name__ == "__main__":
     ref2 = ReferencePath('dl') #左转
     ref3 = ReferencePath('dr') #右转
 
+
+
+    plt.plot(ref2.path_list[0][0],ref2.path_list[0][1])
+    plt.plot(ref2.path_list[1][0],ref2.path_list[1][1])
+    plt.plot(ref2.path_list[2][0],ref2.path_list[2][1])
+    plt.axis('equal')
+    plt.show()
+
     # plt.plot(ref1.path_list[0][0], ref1.path_list[0][1])
     # plt.plot(ref1.path_list[1][0], ref1.path_list[1][1])
     # plt.plot(ref1.path_list[2][0], ref1.path_list[2][1])
@@ -275,22 +299,24 @@ if __name__ == "__main__":
     # plt.plot(x_r3, y_r3)
     # plt.plot(x_u3, y_u3)
     # plt.plot(x_l3, y_l3)
-    plt.plot(ref1.path_list[-1][0], ref1.path_list[-1][1])
-    x_r14, y_r14, phi_r14 = coordinate_trans(ref1.path_list[-1],'rl')
-    x_u14, y_u14, phi_u14 = coordinate_trans(ref1.path_list[-1],'ud')
-    x_l14, y_l14, phi_l14 = coordinate_trans(ref1.path_list[-1],'lr')
-    x_r24, y_r24, phi_r24 = coordinate_trans(ref2.path_list[-1],'rd')
-    x_u24, y_u24, phi_u24 = coordinate_trans(ref2.path_list[-1],'ur')
-    x_l24, y_l24, phi_l24 = coordinate_trans(ref2.path_list[-1],'lu')
-    plt.plot(x_r14, y_r14)
-    plt.plot(x_u14, y_u14)
-    plt.plot(x_l14, y_l14)
-    plt.plot(x_r24, y_r24)
-    plt.plot(x_u24, y_u24)
-    plt.plot(x_l24, y_l24)
-    plt.plot(ref2.path_list[-1][0], ref2.path_list[-1][1])
-    plt.axis('equal')
-    plt.show()
-    #print(ref.multi_future_ref_points(1.875, -34.856, 20)[0][0])
+
+
+    # plot red line----------------------------------------------------------
+    # plt.plot(ref1.path_list[-1][0], ref1.path_list[-1][1])
+    # x_r14, y_r14, phi_r14 = coordinate_trans(ref1.path_list[-1],'rl')
+    # x_u14, y_u14, phi_u14 = coordinate_trans(ref1.path_list[-1],'ud')
+    # x_l14, y_l14, phi_l14 = coordinate_trans(ref1.path_list[-1],'lr')
+    # x_r24, y_r24, phi_r24 = coordinate_trans(ref2.path_list[-1],'rd')
+    # x_u24, y_u24, phi_u24 = coordinate_trans(ref2.path_list[-1],'ur')
+    # x_l24, y_l24, phi_l24 = coordinate_trans(ref2.path_list[-1],'lu')
+    # plt.plot(x_r14, y_r14)
+    # plt.plot(x_u14, y_u14)
+    # plt.plot(x_l14, y_l14)
+    # plt.plot(x_r24, y_r24)
+    # plt.plot(x_u24, y_u24)
+    # plt.plot(x_l24, y_l24)
+    # plt.plot(ref2.path_list[-1][0], ref2.path_list[-1][1])
+    # plt.axis('equal')
+    # plt.show()
 
                                                                                                                 

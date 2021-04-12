@@ -14,10 +14,10 @@
             "justMyCode": false
         },
         {
-            "name": "Python: main_ipopt",
+            "name": "Python: Reference",
             "type": "python",
             "request": "launch",
-            "program": "${workspaceFolder}/main_ipopt.py",
+            "program": "${workspaceFolder}/Reference.py",
             "console": "integratedTerminal",
             "justMyCode": false
         },
