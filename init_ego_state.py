@@ -1,14 +1,16 @@
+from predict_surroundings import routeID_to_task
 from Reference import ReferencePath
 import numpy as np
 from Utils import L, W
 
 
-def generate_ego_init_state(routeID, index):
+def generate_ego_init_state(routeID, index, random_v):
     ref = ReferencePath(routeID)
+    task = routeID_to_task(routeID)
     x, y, phi = ref.indexs2points(index, path_index=0)
     steer = 0.
     a_x = 0.
-    v = 6
+    v = random_v
     ego_state = {'v_x':v,
                 "v_y":0,
                 'r':0,
@@ -21,7 +23,7 @@ def generate_ego_init_state(routeID, index):
                 'w':W,
                 'routeID':routeID
                 }
-    return ego_state, ref
+    return ego_state, ref, task
 
 if __name__ == "__main__" :
     init_ego_state = {}

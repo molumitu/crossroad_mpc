@@ -15,5 +15,10 @@ compare_solver_result/
 *.mlx
 *.csv
 *.xlsx
+*.pickle
+*.mp4
+*.xml
+*.png
+
 
 

@@ -5,11 +5,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 from Utils import CROSSROAD_SIZE, LANE_WIDTH, LANE_NUMBER, STEP_TIME
 class ReferencePath(object):
-    extension = 75
     meter_pointnum_ratio = 100
     stop_dist = 12
-    def __init__(self, routeID):
+    def __init__(self, routeID, extension = 75):
         self.exp_v = 6.
+        self.extension = extension
         self.routeID = routeID
         self.routes_num = self.cal_route_num()
         self.path_list = []
@@ -198,7 +198,7 @@ class ReferencePath(object):
 
         ##### 给未来horizon个ref_points
         for _ in range(n):
-            current_index = current_index + 60
+            current_index = current_index + 55
             future_ref_list.append(self.indexs2points(current_index, path_index))
 
         # ##### 给单点作为horizon

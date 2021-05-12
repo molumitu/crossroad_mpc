@@ -6,7 +6,7 @@ from math import sqrt
 import numpy as np
 from typing import Dict
 from Utils import shift_and_rotate_coordination, convert_car_coord_to_sumo_coord, \
-    convert_sumo_coord_to_car_coord, xy2_edgeID_lane, STEP_TIME, CROSSROAD_SIZE,L,W
+    convert_sumo_coord_to_car_coord, STEP_TIME, CROSSROAD_SIZE,L,W
 
 if 'SUMO_HOME' in os.environ:
     tools = os.path.join(os.environ['SUMO_HOME'], 'tools')
@@ -21,12 +21,14 @@ from traci.exceptions import FatalTraCIError
 
 dirname = os.path.dirname(__file__)
 SUMOCFG_DIR = dirname + "/sumo_files/cross.sumocfg"
-SUMO_BINARY = checkBinary('sumo-gui')
+# SUMO_BINARY = checkBinary('sumo-gui')
+SUMO_BINARY = checkBinary('sumo')
 
 
 class Traffic(object):
 
-    def __init__(self):
+    def __init__(self, save_data_path:str, init_sim_time:int):
+        save_path = os.path.join(save_data_path, f'output_info_{init_sim_time}.xml')
         self.step_time = str(STEP_TIME)
         seed = 6
         import time
@@ -40,6 +42,7 @@ class Traffic(object):
                  #"--random",
                  # "--start",
                  # "--quit-on-end",
+                 "--tripinfo-output", save_path,
                  "--no-warnings",
                  "--no-step-log",
                  #"--collision.action", "remove"
@@ -47,18 +50,19 @@ class Traffic(object):
                  ], port=port, numRetries=5)  # '--seed', str(int(seed))
         except FatalTraCIError:
             print('Retry by other port')
-            # # port = sumolib.miscutils.getFreeSocketPort()
-            # traci.start(
-            #     [SUMO_BINARY, "-c", SUMOCFG_DIR,
-            #      "--step-length", self.step_time,
-            #      "--lateral-resolution", "1.25",
-            #      # "--random",
-            #      # "--start",
-            #      # "--quit-on-end",
-            #      "--no-warnings",
-            #      "--no-step-log",
-            #      '--seed', str(int(seed))
-            #      ], port=port, numRetries=5)  # '--seed', str(int(seed))
+            port = sumolib.miscutils.getFreeSocketPort()
+            traci.start(
+                [SUMO_BINARY, "-c", SUMOCFG_DIR,
+                 "--step-length", self.step_time,
+                 "--lateral-resolution", "1.25",
+                 # "--random",
+                 # "--start",
+                 # "--quit-on-end",
+                 "--tripinfo-output", save_path,
+                 "--no-warnings",
+                 "--no-step-log",
+                 '--seed', str(int(seed))
+                 ], port=port, numRetries=5)  # '--seed', str(int(seed))
 
         traci.vehicle.subscribeContext('collector',
                                        traci.constants.CMD_GET_VEHICLE_VARIABLE,
@@ -80,16 +84,19 @@ class Traffic(object):
         end = time.time()
         print("Sumo startup time: ", end - start)
         # 先让交通流运行一段时间
-        while traci.simulation.getTime() < 20:   #这里的时间单位是秒
-            traci.trafficlight.setPhase('0', 2)
+        while traci.simulation.getTime() < 50:   #这里的时间单位是秒
+            traci.trafficlight.setPhase('0', 0)
             traci.simulationStep()
 
-    def init_traffic(self, init_n_ego_dict:Dict[str, float or str]):
-        self.sim_time = 20
+
+    def close(self):
+        traci.close()
+
+
+    def init_traffic(self, init_n_ego_dict:Dict[str, float],init_n_ego_dict_not_control:Dict[str, float], init_sim_time:int):
+        self.MAX_VEH = 24 - len(init_n_ego_dict)
+        self.sim_time = init_sim_time
         self.all_vehicles = traci.vehicle.getContextSubscriptionResults('collector')  # 最原始的信息
-
-
-
         self.collision_flag = False
         self.n_ego_collision_flag = {}
         self.collision_ego_id = None
@@ -98,9 +105,12 @@ class Traffic(object):
         
         init_egos_dict  = init_n_ego_dict.copy()
 
-        # self.add_ego_vehicles({**init_n_ego_dict, **init_n_ego_dict_not_control})
-        self.add_ego_vehicles(init_egos_dict)
+        self.add_ego_vehicles({**init_n_ego_dict, **init_n_ego_dict_not_control})
+        # self.add_ego_vehicles(init_egos_dict)
         self.each_ego_vehicles_list = defaultdict(list)
+        self.each_ego_vehicles_list_without_egos = defaultdict(list)
+        self.each_ego_vehicles_list_egos = defaultdict(list)
+        self.each_ego_egoID_list = defaultdict(list)
 
         self._update_traffic_light()
         traci.simulationStep()
@@ -142,12 +152,16 @@ class Traffic(object):
                 x_in_ego_coord, y_in_ego_coord, a_in_ego_coord = shift_and_rotate_coordination(x, y, a, ego_x, ego_y, ego_phi)
                 ego_x_in_veh_coord, ego_y_in_veh_coord, ego_a_in_veh_coord = shift_and_rotate_coordination(ego_x, ego_y, ego_phi,x, y, a)
                 #保证加入的自车和周围车辆之间相互不冲突
-                if (-6 < x_in_ego_coord < 2 * (ego_v_x) + ego_l/2. + veh_l/2. + 2 and abs(y_in_ego_coord) < 3) or \
-                        (-6 < ego_x_in_veh_coord < 2 * (veh_v) + ego_l/2. + veh_l/2. + 2 and abs(ego_y_in_veh_coord) <3):
+                if (-10 < x_in_ego_coord < 2 * (ego_v_x) + ego_l/2. + veh_l/2. + 2 and abs(y_in_ego_coord) < 3) or \
+                        (-10 < ego_x_in_veh_coord < 2 * (veh_v) + ego_l/2. + veh_l/2. + 2 and abs(ego_y_in_veh_coord) <3):
                     traci.vehicle.remove(vehID=veh)
 
     def get_vehicles_for_each_ego(self, n_ego_dict_keys):
         self.each_ego_vehicles_list = defaultdict(list)
+        self.each_ego_vehicles_list_without_egos = defaultdict(list)
+        self.each_ego_vehicles_list_egos = defaultdict(list)
+        self.each_ego_egoID_list = defaultdict(list)
+        
         veh_set = set()
 
         for egoID in n_ego_dict_keys:
@@ -180,39 +194,50 @@ class Traffic(object):
                     # transfer x,y,a in car coord   # a means angle i.e. phi
                     x, y, a = convert_sumo_coord_to_car_coord(x_in_sumo, y_in_sumo, a_in_sumo, length)
                     v = veh_info_dict[veh][traci.constants.VAR_SPEED]
-                    # transfer x,y,a in ego coord， 暂时还没用上
+                    # transfer x,y,a in ego coord
                     x_in_ego_coord, y_in_ego_coord, a_in_ego_coord = shift_and_rotate_coordination(x, y, a, x_ego, y_ego, a_ego)
                     #traci.vehicle.setColor(str(veh),(255,255,255))
-                    if abs(y_ego) > 25:
-                        if abs(x_ego - x) < 3 and abs(y_ego) - abs(y) > 0 and abs(y_ego) - abs(y) < 15:
-                            if veh not in n_ego_dict_keys:
-                                veh_set.add(veh)    
-                            self.each_ego_vehicles_list[egoID].append([x, y, v, a, acc, route])
-                    elif abs(x_ego) > 25:
-                        if abs(y_ego - y) < 3 and abs(x_ego) - abs(x) > 0 and abs(x_ego) - abs(x) < 15:
-                            if veh not in n_ego_dict_keys:
-                                veh_set.add(veh)    
-                            self.each_ego_vehicles_list[egoID].append([x, y, v, a, acc, route])
-                    elif (sqrt((x_ego-x) ** 2 + (y_ego-y) ** 2) < 30) and task == 0 \
-                        and x_in_ego_coord > -3 and y_in_ego_coord > -3 and abs(x)<27 and abs(y)<27: #左转
+                    dist = sqrt(x_in_ego_coord**2 + y_in_ego_coord**2)
+                    if abs(y_ego) > 24:
+                        if abs(x_ego - x) < 2 and abs(y_ego) - abs(y) > 0 and abs(y_ego) - abs(y) < 20:
+                            self.each_ego_vehicles_list[egoID].append((dist, x, y, v, a, acc, route, veh))
+                            if veh in n_ego_dict_keys:
+                                self.each_ego_egoID_list[egoID].append(veh)
+                    elif abs(x_ego) > 24:
+                        if abs(y_ego - y) < 2 and abs(x_ego) - abs(x) > 0 and abs(x_ego) - abs(x) < 20:
+                            self.each_ego_vehicles_list[egoID].append((dist, x, y, v, a, acc, route, veh))
+                            if veh in n_ego_dict_keys:
+                                self.each_ego_egoID_list[egoID].append(veh)
+                    elif (sqrt((x_ego-x) ** 2 + (y_ego-y) ** 2) < 50) and task == 0\
+                        and not ((x_in_ego_coord < -5 and abs(y_in_ego_coord) < 3)): #左转 去掉后面的跟车
+                        self.each_ego_vehicles_list[egoID].append((dist, x, y, v, a, acc, route, veh))
+                        if veh in n_ego_dict_keys:
+                            self.each_ego_egoID_list[egoID].append(veh)
+                    elif (sqrt((x_ego-x) ** 2 + (y_ego-y) ** 2) < 50) and task == 1\
+                        and not ((x_in_ego_coord < -5 and abs(y_in_ego_coord) < 3)): #直行
+                        self.each_ego_vehicles_list[egoID].append((dist, x, y, v, a, acc, route, veh))
+                        if veh in n_ego_dict_keys:
+                            self.each_ego_egoID_list[egoID].append(veh)
+                    elif (sqrt((x_ego-x) ** 2 + (y_ego-y) ** 2) < 50) and task == 2\
+                        and not (x_in_ego_coord < -5 and abs(y_in_ego_coord) < 3):#右转
                         if veh not in n_ego_dict_keys:
                             veh_set.add(veh)    
-                        self.each_ego_vehicles_list[egoID].append([x, y, v, a, acc, route])
-                    elif (sqrt((x_ego-x) ** 2 + (y_ego-y) ** 2) < 20) and task == 1 \
-                        and x_in_ego_coord > 0 and y_in_ego_coord > -5 and y_in_ego_coord < 5: #直行
-                        if veh not in n_ego_dict_keys:
-                            veh_set.add(veh)    
-                        self.each_ego_vehicles_list[egoID].append([x, y, v, a, acc, route])
-                    elif (sqrt((x_ego-x) ** 2 + (y_ego-y) ** 2) < 20) and task == 2 \
-                        and x_in_ego_coord > -3 and y_in_ego_coord < 3: #右转
-                        if veh not in n_ego_dict_keys:
-                            veh_set.add(veh)    
-                        self.each_ego_vehicles_list[egoID].append([x, y, v, a, acc, route])
+                        self.each_ego_vehicles_list[egoID].append((dist, x, y, v, a, acc, route, veh))
+                        if veh in n_ego_dict_keys:
+                            self.each_ego_egoID_list[egoID].append(veh)
 
+            if len(self.each_ego_vehicles_list[egoID]) > self.MAX_VEH:
+                self.each_ego_vehicles_list[egoID].sort()
+                self.each_ego_vehicles_list[egoID] = self.each_ego_vehicles_list[egoID][:self.MAX_VEH]
+            
+            self.each_ego_vehicles_list_without_egos[egoID] = list(filter(lambda veh_tuple: veh_tuple[7] not in n_ego_dict_keys, self.each_ego_vehicles_list[egoID]))
+            self.each_ego_vehicles_list_egos[egoID] = list(filter(lambda veh_tuple: veh_tuple[7] in n_ego_dict_keys, self.each_ego_vehicles_list[egoID]))
+
+                
         # for veh in veh_set:
-        #     traci.vehicle.setColor(str(veh),(255,0,0))
-        for veh in n_ego_dict_keys:
-            traci.vehicle.setColor(str(veh),(255,0,255))
+        #     traci.vehicle.setColor(str(veh),(255,0,0)) #红色
+        # for veh in n_ego_dict_keys:
+        #     traci.vehicle.setColor(str(veh),(255,0,255)) #洋红色
 
     @property
     def traffic_light(self):
@@ -223,25 +248,26 @@ class Traffic(object):
         traci.trafficlight.setPhase('0', phase)
 
     def _update_traffic_light(self):
-        sim_time  = self.sim_time % 130
+        sim_time  = self.sim_time % 120
         if sim_time < 5:
             self.traffic_light = 3  #下方来车绿色
-        elif sim_time < 65:
+        elif sim_time < 60:
             self.traffic_light = 0
-        elif sim_time < 70:
+        elif sim_time < 65:
             self.traffic_light = 1
         else:
             self.traffic_light = 2
 # 2301
 # 0123
 # 1230
-#
+# 3012
 
     def sim_step(self):
         self.sim_time += STEP_TIME
         self._update_traffic_light()
         traci.simulationStep()
         self.all_vehicles = traci.vehicle.getContextSubscriptionResults('collector')  # 最原始的信息
+        
 
         # self.collision_check()
         # for egoID, collision_flag in self.n_ego_collision_flag.items():

@@ -2,15 +2,25 @@
 # -*- coding: utf-8 -*-
 
 import numpy as np
-
-
+ego_route_dict = {'ego1':'dl', 'ego2':'du', 'ego3':'dr' ,'ego4':'rd','ego5':'rl', 'ego6':'ru', 
+                    'ego7':'ur' ,'ego8':'ud','ego9':'ul', 'ego10':'lu', 'ego11':'lr' ,'ego12':'ld'}
+ego_route_dict_not_control = {'ego1_not_control':'dl', 'ego2_not_control':'du', 'ego3_not_control':'dr' ,'ego4_not_control':'rd',
+                                'ego5_control':'rl', 'ego6_not_control':'ru', 'ego7_not_control':'ur' ,'ego8_not_control':'ud',
+                                'ego9_not_control':'ul', 'ego10_not_control':'lu', 'ego11_not_control':'lr' ,'ego12_not_control':'ld'}
+egoID_to_num_dict = {'ego1':1, 'ego2':2, 'ego3':3 ,'ego4':4,'ego5':5, 'ego6':6, 'ego7':7 ,'ego8':8,'ego9':9, 'ego10':10, 'ego11':11 ,'ego12':12,'ego13':13,'ego14':14,'ego15':15,'ego16':16,'ego17':17,'ego18':18}
+init_ego_num = 16 
+ego_dynamics_keys = ('v_x', 'v_y', 'r', 'x', 'y', 'phi', 'steer', 'a_x')
+other_info_keys =  ('x', 'y', 'v', 'phi', 'acc', 'route')
 STEP_TIME = 0.1
-L, W = 3.6, 1.7
+L, W = 4.0, 1.8
 LANE_WIDTH = 3.75
 LANE_NUMBER = 3
 CROSSROAD_SIZE = 50
-horizon = 20
+extension = 40
+horizon = 25
 Nc = 10
+fail_times = 0
+
 
 
 def judge_feasible(orig_x, orig_y, task):  # map dependant
